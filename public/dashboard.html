@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DJ BookPro — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <!-- jsPDF + AutoTable plugin -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <!-- SheetJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <div class="app-layout">
+
+    <!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════ -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-glyph"><i class="fas fa-headphones-alt"></i></div>
+        <div class="logo-text">DJ <strong>BookPro</strong></div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Main</div>
+        <a href="dashboard.html" class="nav-item active">
+          <i class="fas fa-chart-line"></i><span>Dashboard</span>
+        </a>
+        <a href="index.html" class="nav-item">
+          <i class="fas fa-calendar-alt"></i><span>Bookings</span>
+        </a>
+        <a href="index.html" class="nav-item" onclick="event.preventDefault(); window.location='index.html'; setTimeout(()=>{ if(window.openModal) openModal(); },300)">
+          <i class="fas fa-plus-circle"></i><span>New Booking</span>
+        </a>
+
+        <div class="nav-section-label">Management</div>
+        <a href="#" class="nav-item nav-soon">
+          <i class="fas fa-calendar-week"></i><span>Calendar</span>
+          <span class="soon-badge">Soon</span>
+        </a>
+        <a href="#" class="nav-item nav-soon">
+          <i class="fas fa-users"></i><span>Clients</span>
+          <span class="soon-badge">Soon</span>
+        </a>
+        <a href="#" class="nav-item nav-soon">
+          <i class="fas fa-sliders"></i><span>Equipment</span>
+          <span class="soon-badge">Soon</span>
+        </a>
+
+        <div class="nav-section-label">Analytics</div>
+        <a href="#" class="nav-item nav-soon">
+          <i class="fas fa-chart-bar"></i><span>Reports</span>
+          <span class="soon-badge">Soon</span>
+        </a>
+
+        <div class="nav-section-label">Account</div>
+        <a href="#" class="nav-item nav-soon">
+          <i class="fas fa-cog"></i><span>Settings</span>
+          <span class="soon-badge">Soon</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sf-avatar"><i class="fas fa-user"></i></div>
+        <div class="sf-info">
+          <div class="sf-name">DJ Admin</div>
+          <div class="sf-role">Account Owner</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ══════════════════════════ MAIN CONTENT ═══════════════════════════ -->
+    <main class="main-content">
+
+      <!-- TOP BAR -->
+      <div class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-subtitle">Track your gigs, revenue &amp; payments</p>
+        </div>
+        <div class="topbar-right">
+          <div class="export-group">
+            <button class="btn-export btn-pdf" onclick="exportPDF()" title="Export visible bookings as PDF">
+              <i class="fas fa-file-pdf"></i> PDF
+            </button>
+            <button class="btn-export btn-excel" onclick="exportExcel()" title="Export visible bookings as Excel">
+              <i class="fas fa-file-excel"></i> Excel
+            </button>
+            <button class="btn-export btn-csv" onclick="exportCSV()" title="Export visible bookings as CSV">
+              <i class="fas fa-file-csv"></i> CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FILTERS BAR -->
+      <div class="filters-bar">
+        <div class="filter-item">
+          <label class="filter-label" for="monthFilter">
+            <i class="fas fa-calendar"></i> Month
+          </label>
+          <input type="month" id="monthFilter" class="filter-input" onchange="applyFilters()" />
+        </div>
+
+        <div class="filter-item">
+          <label class="filter-label" for="bookingStatusFilter">
+            <i class="fas fa-bookmark"></i> Booking Status
+          </label>
+          <select id="bookingStatusFilter" class="filter-select" onchange="applyFilters()">
+            <option value="">All Statuses</option>
+            <option value="Enquiry">Enquiry</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label class="filter-label" for="paymentStatusFilter">
+            <i class="fas fa-credit-card"></i> Payment Status
+          </label>
+          <select id="paymentStatusFilter" class="filter-select" onchange="applyFilters()">
+            <option value="">All Payments</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Partial">Partial</option>
+            <option value="Pending">Pending</option>
+          </select>
+        </div>
+
+        <div class="filter-item filter-actions">
+          <label class="filter-label">&nbsp;</label>
+          <button class="btn-clear-filters" onclick="clearFilters()">
+            <i class="fas fa-rotate-left"></i> Reset Filters
+          </button>
+        </div>
+
+        <div class="filter-item" id="activeFiltersWrap">
+          <label class="filter-label">&nbsp;</label>
+          <div class="active-filters-pill" id="activeFiltersPill" style="display:none">
+            <i class="fas fa-filter"></i>
+            <span id="activeFiltersText"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUMMARY CARDS -->
+      <div class="summary-cards">
+        <div class="summary-card card-gigs">
+          <div class="sc-icon"><i class="fas fa-headphones-alt"></i></div>
+          <div class="sc-body">
+            <div class="sc-value" id="sc-gigs">—</div>
+            <div class="sc-label">Total Gigs</div>
+            <div class="sc-period" id="sc-period-gigs">This Month</div>
+          </div>
+        </div>
+        <div class="summary-card card-revenue">
+          <div class="sc-icon"><i class="fas fa-rupee-sign"></i></div>
+          <div class="sc-body">
+            <div class="sc-value" id="sc-revenue">—</div>
+            <div class="sc-label">Total Revenue</div>
+            <div class="sc-period" id="sc-period-rev">This Month</div>
+          </div>
+        </div>
+        <div class="summary-card card-gst">
+          <div class="sc-icon"><i class="fas fa-file-invoice"></i></div>
+          <div class="sc-body">
+            <div class="sc-value" id="sc-gst">—</div>
+            <div class="sc-label">GST Collected</div>
+            <div class="sc-period" id="sc-period-gst">18% of Revenue</div>
+          </div>
+        </div>
+        <div class="summary-card card-pending">
+          <div class="sc-icon"><i class="fas fa-hourglass-half"></i></div>
+          <div class="sc-body">
+            <div class="sc-value" id="sc-pending">—</div>
+            <div class="sc-label">Pending Amount</div>
+            <div class="sc-period" id="sc-period-pend">Outstanding</div>
+          </div>
+        </div>
+        <div class="summary-card card-deposits">
+          <div class="sc-icon"><i class="fas fa-coins"></i></div>
+          <div class="sc-body">
+            <div class="sc-value" id="sc-deposits">—</div>
+            <div class="sc-label">Deposits Collected</div>
+            <div class="sc-period" id="sc-period-dep">This Month</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLE SECTION -->
+      <div class="table-section">
+        <div class="table-header-bar">
+          <div class="thr-left">
+            <span class="thr-title">Bookings</span>
+            <span class="thr-count-badge" id="tableCount">0 bookings</span>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="bookings-table" id="bookingsTable">
+            <thead>
+              <tr>
+                <th class="th-num">#</th>
+                <th>Client Name</th>
+                <th>Event Date</th>
+                <th>Venue</th>
+                <th>Event Type</th>
+                <th>Music Genres</th>
+                <th>Equipment</th>
+                <th class="text-right">Total Price</th>
+                <th class="text-right">GST (18%)</th>
+                <th class="text-center">Deposit Paid</th>
+                <th class="text-right">Pending Amount</th>
+                <th>Payment Status</th>
+                <th>Booking Status</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr><td colspan="13" class="empty-cell">
+                <i class="fas fa-circle-notch fa-spin"></i>
+                Loading bookings…
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-footer-bar" id="tableFooter"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

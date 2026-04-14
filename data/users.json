@@ -1,0 +1,29 @@
+[
+  {
+    "id": "22745ed5-7a66-4768-adb3-c9a81b158e87",
+    "name": "Test DJ",
+    "email": "dj@test.com",
+    "password": "$2b$12$c8oQn0OUqKVhoNH2lVHaJex7XoUyE0JxHS32eZ.TmM86HtLCag22.",
+    "googleId": null,
+    "picture": null,
+    "createdAt": "2026-04-13T09:08:03.277Z"
+  },
+  {
+    "id": "73b8c455-fea3-41b3-8dbe-265c572b0cea",
+    "name": "DJ Admin",
+    "email": "admin@djbookpro.com",
+    "password": "$2b$12$MBCZ.dyMuwP0UQoUKITK0uzkX.Ma3VHXYw7//PnHkgoOMyor619nK",
+    "googleId": null,
+    "picture": null,
+    "createdAt": "2026-04-13T09:08:31.659Z"
+  },
+  {
+    "id": "12e3dbd3-7d7c-41d6-a197-8e73eeb2727a",
+    "name": "Khushali",
+    "email": "khushali@fullstopent.in",
+    "password": "$2b$12$3Uf3SdIWsw1828Oc4hQHr.dzGeQ3sbHVdsefVzBeI3mFCnGH4AHLO",
+    "googleId": null,
+    "picture": null,
+    "createdAt": "2026-04-13T09:17:06.184Z"
+  }
+]
