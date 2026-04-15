@@ -8,6 +8,9 @@ const session = require('express-session');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Render / Heroku / any reverse-proxy host: trust the proxy so secure cookies work over HTTPS
+app.set('trust proxy', 1);
+
 /* ── Data dir ──────────────────────────────────────────────────────────────── */
 const dataDir   = path.join(__dirname, 'data');
 const dbPath    = path.join(dataDir, 'bookings.json');
