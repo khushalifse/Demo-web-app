@@ -83,6 +83,14 @@ body {
   box-shadow: 0 0 22px rgba(240, 88, 41, 0.42);
   flex-shrink: 0;
 }
+.logo-aj-img {
+  width: 42px; height: 42px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px;
+}
 .logo-wordmark {
   font-size: 1.1rem;
   font-weight: 500;
