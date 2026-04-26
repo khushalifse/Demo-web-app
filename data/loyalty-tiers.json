@@ -1,0 +1,5 @@
+[
+  { "name": "Silver",   "threshold": 1000000, "discountPercent": 10 },
+  { "name": "Gold",     "threshold": 2000000, "discountPercent": 15 },
+  { "name": "Platinum", "threshold": 3000000, "discountPercent": 20 }
+]

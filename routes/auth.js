@@ -114,7 +114,7 @@ router.get('/google/callback', async (req, res) => {
 
   const clientId     = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  //const base         = process.env.APP_URL || 'http://localhost:3000';
+  const base         = process.env.APP_URL || 'https://demo-web-app-4l6i.onrender.com';
   const redirectUri  = `${base}/api/auth/google/callback`;
 
   try {

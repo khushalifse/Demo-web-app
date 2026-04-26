@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DJ BookPro — Loyalty Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="vendor.css" />
+</head>
+<body>
+  <div class="app-layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-glyph"><i class="fas fa-headphones-alt"></i></div>
+        <div class="logo-text">DJ <strong>BookPro</strong></div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Main</div>
+        <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i><span>Dashboard</span></a>
+        <a href="index.html" class="nav-item"><i class="fas fa-calendar-alt"></i><span>Bookings</span></a>
+
+        <div class="nav-section-label">Loyalty</div>
+        <a href="admin-loyalty.html" class="nav-item active">
+          <i class="fas fa-medal"></i><span>Vendor Loyalty</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sf-avatar"><i class="fas fa-user"></i></div>
+        <div class="sf-info">
+          <div class="sf-name">DJ Admin</div>
+          <div class="sf-role">Account Owner</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+
+      <div class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Vendor Loyalty</h1>
+          <p class="page-subtitle">Manage tiers, manual shows, payments, and reversals</p>
+        </div>
+      </div>
+
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-tab="vendors" onclick="showTab('vendors')">Vendors</button>
+        <button class="admin-tab"        data-tab="reversals" onclick="showTab('reversals')">Reversal Queue</button>
+        <button class="admin-tab"        data-tab="manual"   onclick="showTab('manual')">Add Manual Show</button>
+        <button class="admin-tab"        data-tab="report"   onclick="showTab('report')">FY Report</button>
+        <button class="admin-tab"        data-tab="audit"    onclick="showTab('audit')">Audit Log</button>
+      </div>
+
+      <!-- VENDORS TAB -->
+      <section class="tab-panel" id="tab-vendors">
+        <div class="card">
+          <div class="card-header">
+            <i class="fas fa-users"></i> Vendors
+            <span class="card-sub" id="vendorCount">0 vendors</span>
+          </div>
+          <div class="table-wrapper">
+            <table class="bookings-table">
+              <thead>
+                <tr>
+                  <th>Name</th><th>Company</th><th>Email</th>
+                  <th>Tier</th><th>Discount</th>
+                  <th class="text-right">YTD Sales</th>
+                  <th class="text-right">Shows</th>
+                  <th>FY</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="vendorsBody">
+                <tr><td colspan="9" class="empty-cell"><i class="fas fa-circle-notch fa-spin"></i> Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- REVERSAL QUEUE TAB -->
+      <section class="tab-panel" id="tab-reversals" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <i class="fas fa-rotate-left"></i> Reversal Queue
+            <span class="card-sub">Bookings fully paid &amp; awaiting discount reversal</span>
+          </div>
+          <div class="table-wrapper">
+            <table class="bookings-table">
+              <thead>
+                <tr>
+                  <th>Vendor</th><th>Event</th><th>Date</th>
+                  <th class="text-right">Full Price</th>
+                  <th class="text-right">Reversal Amount</th>
+                  <th>Status</th>
+                  <th class="text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="reversalsBody">
+                <tr><td colspan="7" class="empty-cell"><i class="fas fa-circle-notch fa-spin"></i> Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- MANUAL SHOW TAB -->
+      <section class="tab-panel" id="tab-manual" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <i class="fas fa-plus-circle"></i> Add Manual Show Entry
+            <span class="card-sub">Logs a confirmed show against a vendor with full audit</span>
+          </div>
+          <form class="admin-form-grid" onsubmit="submitManualShow(event)">
+            <div>
+              <label>Vendor</label>
+              <select id="ms-vendor" required></select>
+            </div>
+            <div>
+              <label>Show Name / Event Type</label>
+              <input id="ms-showName" type="text" required placeholder="e.g. Diwali Concert" />
+            </div>
+            <div>
+              <label>Show Date</label>
+              <input id="ms-date" type="date" required />
+            </div>
+            <div>
+              <label>Amount (₹)</label>
+              <input id="ms-amount" type="number" min="0" step="1000" required placeholder="e.g. 150000" />
+            </div>
+            <div>
+              <label>Venue</label>
+              <input id="ms-venue" type="text" />
+            </div>
+            <div>
+              <label>Deposit Already Paid (₹)</label>
+              <input id="ms-deposit" type="number" min="0" value="0" />
+            </div>
+            <div>
+              <label>AJ's Show?</label>
+              <select id="ms-isAjs"><option value="true">Yes — counts toward tier</option><option value="false">No — non-AJ show</option></select>
+            </div>
+            <div>
+              <label>Reason / Note (audit)</label>
+              <input id="ms-reason" type="text" placeholder="Why is this being added manually?" />
+            </div>
+            <div class="full">
+              <label>Remarks</label>
+              <textarea id="ms-remarks" rows="2"></textarea>
+            </div>
+            <div class="full">
+              <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Add Show</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- REPORT TAB -->
+      <section class="tab-panel" id="tab-report" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <i class="fas fa-chart-pie"></i> Fiscal Year Report
+            <span class="card-sub">
+              <input id="report-fy" type="text" placeholder="e.g. 2026-2027" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;width:120px" />
+              <button class="btn-ghost" onclick="loadReport()">Reload</button>
+            </span>
+          </div>
+          <div class="report-grid" id="reportGrid"></div>
+          <div class="table-wrapper">
+            <table class="bookings-table">
+              <thead>
+                <tr><th>Vendor</th><th>Tier</th><th class="text-right">YTD Sales</th><th class="text-right">Shows</th></tr>
+              </thead>
+              <tbody id="reportBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- AUDIT TAB -->
+      <section class="tab-panel" id="tab-audit" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <i class="fas fa-clipboard-list"></i> Tier Override Audit Log
+          </div>
+          <div class="table-wrapper">
+            <table class="bookings-table">
+              <thead>
+                <tr><th>When</th><th>Vendor</th><th>From → To</th><th>Reason</th><th>By</th></tr>
+              </thead>
+              <tbody id="auditBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- OVERRIDE MODAL -->
+  <div id="overrideModal" class="modal-backdrop" style="display:none">
+    <div class="modal-card">
+      <h3 style="margin:0 0 12px">Override Tier</h3>
+      <p style="color:#64748b;margin-bottom:16px;font-size:13px">Manual overrides are recorded in the audit log.</p>
+      <div class="admin-form-grid">
+        <div class="full">
+          <label>Vendor</label>
+          <input id="ov-vendorName" type="text" disabled />
+        </div>
+        <div class="full">
+          <label>Tier (leave blank to clear override)</label>
+          <select id="ov-tier">
+            <option value="">— Auto (no override) —</option>
+            <option value="Silver">Silver</option>
+            <option value="Gold">Gold</option>
+            <option value="Platinum">Platinum</option>
+          </select>
+        </div>
+        <div class="full">
+          <label>Reason</label>
+          <textarea id="ov-reason" rows="3" placeholder="Required"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+        <button class="btn-ghost" onclick="closeOverride()">Cancel</button>
+        <button class="btn-primary" onclick="submitOverride()"><i class="fas fa-save"></i> Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="admin-loyalty.js"></script>
+  <style>
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal-card {
+      background: #fff; border-radius: 14px; padding: 24px;
+      width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+  </style>
+</body>
+</html>

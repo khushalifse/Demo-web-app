@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AJ Vendor Portal — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="vendor.css" />
+</head>
+<body>
+  <div class="app-layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-glyph"><i class="fas fa-medal"></i></div>
+        <div class="logo-text">AJ <strong>Loyalty</strong></div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Vendor</div>
+        <a href="vendor-dashboard.html" class="nav-item active">
+          <i class="fas fa-medal"></i><span>Loyalty Dashboard</span>
+        </a>
+        <a href="#bookings" class="nav-item" onclick="scrollToBookings(event)">
+          <i class="fas fa-list-ul"></i><span>Booking History</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sf-avatar"><i class="fas fa-user"></i></div>
+        <div class="sf-info">
+          <div class="sf-name" id="vendorName">—</div>
+          <div class="sf-role">Vendor</div>
+        </div>
+        <button class="vendor-logout" title="Sign out" onclick="vendorLogout()"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+
+      <div class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Loyalty Dashboard</h1>
+          <p class="page-subtitle">Your tier, sales progress &amp; reversals</p>
+        </div>
+        <div class="topbar-right">
+          <div class="fy-pill">
+            <i class="fas fa-calendar"></i>
+            <span>FY <span id="fyLabel">—</span></span>
+            <span class="fy-sep">·</span>
+            <span><span id="fyDays">—</span> days remaining</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tier hero -->
+      <div class="tier-hero" id="tierHero">
+        <div class="th-badge" id="thBadge"><i class="fas fa-medal"></i></div>
+        <div class="th-body">
+          <div class="th-label">Current Tier</div>
+          <div class="th-name" id="thName">—</div>
+          <div class="th-discount">
+            <span id="thDiscount">—</span> discount on AJ's shows (reversed after full payment)
+          </div>
+        </div>
+        <div class="th-stats">
+          <div class="ths-item">
+            <div class="ths-value" id="thYtd">—</div>
+            <div class="ths-label">YTD AJ Sales</div>
+          </div>
+          <div class="ths-item">
+            <div class="ths-value" id="thShows">—</div>
+            <div class="ths-label">AJ Shows Booked</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress to next tier -->
+      <div class="tier-progress card" id="progressCard">
+        <div class="tp-head">
+          <div>
+            <div class="tp-title">Progress to <span id="nextTierName">—</span></div>
+            <div class="tp-sub" id="progressSub">—</div>
+          </div>
+          <div class="tp-pct" id="progressPct">—</div>
+        </div>
+        <div class="tp-bar"><div class="tp-fill" id="progressFill" style="width:0%"></div></div>
+      </div>
+
+      <!-- Discount preview -->
+      <div class="card preview-card">
+        <div class="card-header">
+          <i class="fas fa-calculator"></i> Discounted Price Preview
+          <span class="card-sub">See what you'd get reversed at your current tier</span>
+        </div>
+        <div class="preview-body">
+          <div class="preview-input">
+            <label for="previewAmount">Enter a booking amount (₹)</label>
+            <input type="number" id="previewAmount" min="0" step="1000" placeholder="e.g. 100000" oninput="updatePreview()" />
+          </div>
+          <div class="preview-results">
+            <div class="pr-row"><span>Full price (you pay this at booking)</span><strong id="prFull">₹0</strong></div>
+            <div class="pr-row"><span>Discount @ <span id="prRate">0%</span></span><strong id="prDiscount" class="pr-discount">₹0</strong></div>
+            <div class="pr-row pr-total"><span>Net cost after reversal</span><strong id="prNet">₹0</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tier ladder -->
+      <div class="card">
+        <div class="card-header"><i class="fas fa-layer-group"></i> Tier Ladder</div>
+        <div class="tier-ladder" id="tierLadder"></div>
+      </div>
+
+      <!-- Booking history -->
+      <div class="table-section" id="bookings">
+        <div class="table-header-bar">
+          <div class="thr-left">
+            <span class="thr-title">Booking History</span>
+            <span class="thr-count-badge" id="historyCount">0 bookings</span>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table class="bookings-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Event</th>
+                <th>Venue</th>
+                <th class="text-right">Full Price</th>
+                <th class="text-right">Discount</th>
+                <th>Payment</th>
+                <th>Reversal</th>
+                <th>AJ Show</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody">
+              <tr><td colspan="8" class="empty-cell"><i class="fas fa-circle-notch fa-spin"></i> Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="vendor-dashboard.js"></script>
+</body>
+</html>

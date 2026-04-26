@@ -4,6 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
+const store    = require('../lib/loyalty-store');
+const tierCalc = require('../lib/tier-calc');
+const { derivePaymentStatus } = require('../lib/payment-status');
+
 const DB_PATH = path.join(__dirname, '../data/bookings.json');
 
 function readDB() {
@@ -20,6 +24,42 @@ function effectiveBase(b) {
          (Number(b.hologramAmount)  || 0) +
          (Number(b.dholAmount)      || 0) +
          (Number(b.ancillaryAmount) || 0);
+}
+
+// Persists vendor's loyalty status row so the admin/vendor dashboards stay in sync
+// after a booking add/edit/cancel/payment.
+function refreshVendorStatus(vendorId) {
+  if (!vendorId) return;
+  const statuses = store.readStatuses();
+  const existing = statuses.find(s => s.vendorId === vendorId) || null;
+  const fresh    = tierCalc.recomputeStatus(vendorId, store.readBookings(), store.readTiers(), existing);
+  const idx = statuses.findIndex(s => s.vendorId === vendorId);
+  if (idx === -1) statuses.push(fresh); else statuses[idx] = fresh;
+  store.writeStatuses(statuses);
+}
+
+// Snapshot the vendor's current tier/discount onto a new booking. Per spec,
+// tier crossings only apply to FUTURE bookings — capture discount% at create time.
+function snapshotLoyaltyFields(payload) {
+  const out = { ...payload };
+  out.isAjsShow = out.isAjsShow !== false; // default true
+  out.fullPrice = Number(out.totalPrice) || 0;
+  if (out.vendorId && out.isAjsShow) {
+    const statuses = store.readStatuses();
+    const existing = statuses.find(s => s.vendorId === out.vendorId) || null;
+    const fresh    = tierCalc.recomputeStatus(out.vendorId, store.readBookings(), store.readTiers(), existing);
+    out.discountPercent = fresh.discountPercent || 0;
+    out.discountAmount  = Math.round((out.fullPrice * out.discountPercent) / 100);
+  } else {
+    out.discountPercent = 0;
+    out.discountAmount  = 0;
+  }
+  out.reversalStatus     = out.reversalStatus     || 'NotEligible';
+  out.reversalAmount     = out.reversalAmount     || 0;
+  out.reversalDate       = out.reversalDate       || null;
+  out.reversalApprovedBy = out.reversalApprovedBy || null;
+  out.paymentStatus      = derivePaymentStatus(out);
+  return out;
 }
 
 // ─── Dashboard Stats ─────────────────────────────────────────────────────────
@@ -147,9 +187,10 @@ router.post('/', (req, res) => {
     if (conflict) return res.status(409).json({ error: conflict });
   }
 
+  const withLoyalty = snapshotLoyaltyFields(req.body);
   const booking = {
     id: uuidv4(),
-    ...req.body,
+    ...withLoyalty,
     depositPaid: req.body.depositPaid === true || req.body.depositPaid === 'true',
     paymentLinks: [],
     createdAt: new Date().toISOString(),
@@ -157,6 +198,7 @@ router.post('/', (req, res) => {
   };
   bookings.push(booking);
   writeDB(bookings);
+  refreshVendorStatus(booking.vendorId);
   res.status(201).json(booking);
 });
 
@@ -171,7 +213,10 @@ router.put('/:id', (req, res) => {
     if (conflict) return res.status(409).json({ error: conflict });
   }
 
-  bookings[idx] = {
+  // On edit, re-derive paymentStatus from depositAmount, but DO NOT re-snapshot
+  // discountPercent — that was locked in at create time per spec ("tier crossing
+  // mid-year applies to future bookings only").
+  const merged = {
     ...bookings[idx],
     ...req.body,
     id: req.params.id,
@@ -179,7 +224,16 @@ router.put('/:id', (req, res) => {
     paymentLinks: bookings[idx].paymentLinks || [],
     updatedAt: new Date().toISOString(),
   };
+  merged.paymentStatus = derivePaymentStatus(merged);
+  if (merged.paymentStatus === 'FullyPaid' &&
+      merged.isAjsShow &&
+      Number(merged.discountAmount) > 0 &&
+      merged.reversalStatus === 'NotEligible') {
+    merged.reversalStatus = 'Eligible';
+  }
+  bookings[idx] = merged;
   writeDB(bookings);
+  refreshVendorStatus(merged.vendorId);
   res.json(bookings[idx]);
 });
 
@@ -201,9 +255,17 @@ router.patch('/:id/record-payment', (req, res) => {
   bookings[idx].depositAmount = newDeposit;
   bookings[idx].depositPaid   = newDeposit >= totalWithGST ? true : b.depositPaid;
   if (paymentMode) bookings[idx].paymentMode = paymentMode;
+  bookings[idx].paymentStatus = derivePaymentStatus(bookings[idx]);
+  if (bookings[idx].paymentStatus === 'FullyPaid' &&
+      bookings[idx].isAjsShow &&
+      Number(bookings[idx].discountAmount) > 0 &&
+      bookings[idx].reversalStatus === 'NotEligible') {
+    bookings[idx].reversalStatus = 'Eligible';
+  }
   bookings[idx].updatedAt = new Date().toISOString();
 
   writeDB(bookings);
+  refreshVendorStatus(bookings[idx].vendorId);
   res.json(bookings[idx]);
 });
 
@@ -211,8 +273,11 @@ router.delete('/:id', (req, res) => {
   const bookings = readDB();
   const idx = bookings.findIndex(b => b.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Booking not found' });
+  const removed = bookings[idx];
   bookings.splice(idx, 1);
   writeDB(bookings);
+  // Removing a booking reduces YTD; refresh vendor's tier.
+  refreshVendorStatus(removed.vendorId);
   res.json({ success: true });
 });
 

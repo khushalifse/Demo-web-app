@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AJ Vendor Portal — Sign In</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="login.css" />
+</head>
+<body>
+
+  <div class="auth-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <div class="auth-wrapper">
+    <div class="auth-brand">
+      <div class="brand-icon"><img src="/aj-logo.png" alt="AJ" class="brand-logo-img" /></div>
+      <div class="brand-name">AJ <strong>Vendor Portal</strong></div>
+    </div>
+
+    <div class="auth-card">
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign In</button>
+        <button class="auth-tab"        id="tab-signup" onclick="switchTab('signup')">Create Account</button>
+      </div>
+
+      <div class="auth-alert" id="authAlert" style="display:none"></div>
+
+      <form id="loginForm" class="auth-form" onsubmit="handleLogin(event)" novalidate>
+        <div class="form-group">
+          <label for="l-email"><i class="fas fa-envelope"></i> Email</label>
+          <input type="email" id="l-email" placeholder="you@company.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="l-password"><i class="fas fa-lock"></i> Password</label>
+          <div class="input-eye-wrap">
+            <input type="password" id="l-password" placeholder="Your password" required autocomplete="current-password" />
+            <button type="button" class="eye-btn" onclick="togglePwd('l-password', this)">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-auth" id="loginBtn">
+          <span class="btn-text"><i class="fas fa-sign-in-alt"></i> Sign In</span>
+          <span class="btn-spinner" style="display:none"><i class="fas fa-circle-notch fa-spin"></i> Signing in…</span>
+        </button>
+      </form>
+
+      <form id="signupForm" class="auth-form" style="display:none" onsubmit="handleSignup(event)" novalidate>
+        <div class="form-group">
+          <label for="s-name"><i class="fas fa-user"></i> Full Name</label>
+          <input type="text" id="s-name" placeholder="Your name" required autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label for="s-company"><i class="fas fa-building"></i> Company / Agency Name</label>
+          <input type="text" id="s-company" placeholder="Optional" />
+        </div>
+        <div class="form-group">
+          <label for="s-email"><i class="fas fa-envelope"></i> Email</label>
+          <input type="email" id="s-email" placeholder="you@company.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="s-phone"><i class="fas fa-phone"></i> Phone</label>
+          <input type="tel" id="s-phone" placeholder="Optional" />
+        </div>
+        <div class="form-group">
+          <label for="s-password"><i class="fas fa-lock"></i> Password <span class="hint">(min. 6 chars)</span></label>
+          <div class="input-eye-wrap">
+            <input type="password" id="s-password" placeholder="Create a password" required autocomplete="new-password" minlength="6" />
+            <button type="button" class="eye-btn" onclick="togglePwd('s-password', this)">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-auth" id="signupBtn">
+          <span class="btn-text"><i class="fas fa-user-plus"></i> Create Account</span>
+          <span class="btn-spinner" style="display:none"><i class="fas fa-circle-notch fa-spin"></i> Creating account…</span>
+        </button>
+      </form>
+    </div>
+
+    <p class="auth-footer">
+      AJ Vendor Portal &copy; <span id="yr"></span> &mdash; Earn loyalty rewards on every booking.
+    </p>
+  </div>
+
+  <script>
+    document.getElementById('yr').textContent = new Date().getFullYear();
+
+    function switchTab(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('loginForm').style.display  = isLogin ? '' : 'none';
+      document.getElementById('signupForm').style.display = isLogin ? 'none' : '';
+      document.getElementById('tab-login').classList.toggle('active',  isLogin);
+      document.getElementById('tab-signup').classList.toggle('active', !isLogin);
+      hideAlert();
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn      = document.getElementById('loginBtn');
+      const email    = document.getElementById('l-email').value.trim();
+      const password = document.getElementById('l-password').value;
+      setLoading(btn, true); hideAlert();
+      try {
+        const res = await fetch('/api/vendor-auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+        location.href = '/vendor-dashboard.html';
+      } catch (err) {
+        showAlert(err.message, 'error');
+        setLoading(btn, false);
+      }
+    }
+
+    async function handleSignup(e) {
+      e.preventDefault();
+      const btn         = document.getElementById('signupBtn');
+      const name        = document.getElementById('s-name').value.trim();
+      const companyName = document.getElementById('s-company').value.trim();
+      const email       = document.getElementById('s-email').value.trim();
+      const phone       = document.getElementById('s-phone').value.trim();
+      const password    = document.getElementById('s-password').value;
+      setLoading(btn, true); hideAlert();
+      if (password.length < 6) {
+        showAlert('Password must be at least 6 characters.', 'error');
+        return setLoading(btn, false);
+      }
+      try {
+        const res = await fetch('/api/vendor-auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password, phone, companyName }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Signup failed');
+        location.href = '/vendor-dashboard.html';
+      } catch (err) {
+        showAlert(err.message, 'error');
+        setLoading(btn, false);
+      }
+    }
+
+    function setLoading(btn, on) {
+      btn.querySelector('.btn-text').style.display    = on ? 'none' : '';
+      btn.querySelector('.btn-spinner').style.display = on ? '' : 'none';
+      btn.disabled = on;
+    }
+    function showAlert(msg, type) {
+      const el = document.getElementById('authAlert');
+      el.textContent = msg;
+      el.className   = `auth-alert ${type}`;
+      el.style.display = '';
+    }
+    function hideAlert() { document.getElementById('authAlert').style.display = 'none'; }
+    function togglePwd(inputId, btn) {
+      const inp = document.getElementById(inputId);
+      const isHidden = inp.type === 'password';
+      inp.type = isHidden ? 'text' : 'password';
+      btn.querySelector('i').className = `fas fa-eye${isHidden ? '-slash' : ''}`;
+    }
+  </script>
+</body>
+</html>

@@ -25,5 +25,23 @@
     "googleId": null,
     "picture": null,
     "createdAt": "2026-04-13T09:17:06.184Z"
+  },
+  {
+    "id": "6b30640d-cc37-4c3f-b78f-af5fc67f1443",
+    "name": "cowilo5746",
+    "email": "cowilo5746@sskaid.com",
+    "password": "$2b$12$DY4WpUrEbZWuXvWopQB2U.VWTPvpQvVDBPdvobC2sVlXCzOY1ji32",
+    "googleId": null,
+    "picture": null,
+    "createdAt": "2026-04-15T06:40:42.823Z"
+  },
+  {
+    "id": "08dfbb0c-7344-4663-b55b-600805659ae0",
+    "name": "donexe5502",
+    "email": "donexe5502@sskaid.com",
+    "password": "$2b$12$h7G3BM1duyTgvoVNNk.ktuPIpqMC33Sz7ewJeNEhGMHqyRcvLunqa",
+    "googleId": null,
+    "picture": null,
+    "createdAt": "2026-04-15T06:58:38.245Z"
   }
 ]
