@@ -46,7 +46,17 @@
     "bookingStatus": "Confirmed",
     "paymentLinks": [],
     "createdAt": "2026-03-10T10:00:00.000Z",
-    "updatedAt": "2026-03-10T10:00:00.000Z"
+    "updatedAt": "2026-03-10T10:00:00.000Z",
+    "vendorId": null,
+    "isAjsShow": true,
+    "fullPrice": 95000,
+    "discountPercent": 0,
+    "discountAmount": 0,
+    "paymentStatus": "Partial",
+    "reversalStatus": "NotEligible",
+    "reversalAmount": 0,
+    "reversalDate": null,
+    "reversalApprovedBy": null
   },
   {
     "id": "bk-may-2026",
@@ -80,7 +90,17 @@
     "bookingStatus": "Confirmed",
     "paymentLinks": [],
     "createdAt": "2026-04-01T09:00:00.000Z",
-    "updatedAt": "2026-04-01T09:00:00.000Z"
+    "updatedAt": "2026-04-01T09:00:00.000Z",
+    "vendorId": null,
+    "isAjsShow": true,
+    "fullPrice": 45000,
+    "discountPercent": 0,
+    "discountAmount": 0,
+    "paymentStatus": "Partial",
+    "reversalStatus": "NotEligible",
+    "reversalAmount": 0,
+    "reversalDate": null,
+    "reversalApprovedBy": null
   },
   {
     "id": "bk-jun-2026",
@@ -114,7 +134,17 @@
     "bookingStatus": "Enquiry",
     "paymentLinks": [],
     "createdAt": "2026-04-05T11:00:00.000Z",
-    "updatedAt": "2026-04-05T11:00:00.000Z"
+    "updatedAt": "2026-04-05T11:00:00.000Z",
+    "vendorId": null,
+    "isAjsShow": true,
+    "fullPrice": 55000,
+    "discountPercent": 0,
+    "discountAmount": 0,
+    "paymentStatus": "Pending",
+    "reversalStatus": "NotEligible",
+    "reversalAmount": 0,
+    "reversalDate": null,
+    "reversalApprovedBy": null
   },
   {
     "id": "bk-jul-2026",
@@ -148,7 +178,17 @@
     "bookingStatus": "Confirmed",
     "paymentLinks": [],
     "createdAt": "2026-04-08T14:00:00.000Z",
-    "updatedAt": "2026-04-08T14:00:00.000Z"
+    "updatedAt": "2026-04-08T14:00:00.000Z",
+    "vendorId": null,
+    "isAjsShow": true,
+    "fullPrice": 60000,
+    "discountPercent": 0,
+    "discountAmount": 0,
+    "paymentStatus": "Partial",
+    "reversalStatus": "NotEligible",
+    "reversalAmount": 0,
+    "reversalDate": null,
+    "reversalApprovedBy": null
   },
   {
     "id": "bk-aug-2026",
@@ -182,7 +222,17 @@
     "bookingStatus": "Enquiry",
     "paymentLinks": [],
     "createdAt": "2026-04-10T16:00:00.000Z",
-    "updatedAt": "2026-04-10T16:00:00.000Z"
+    "updatedAt": "2026-04-10T16:00:00.000Z",
+    "vendorId": null,
+    "isAjsShow": true,
+    "fullPrice": 35000,
+    "discountPercent": 0,
+    "discountAmount": 0,
+    "paymentStatus": "Pending",
+    "reversalStatus": "NotEligible",
+    "reversalAmount": 0,
+    "reversalDate": null,
+    "reversalApprovedBy": null
   },
   {
     "id": "bk-sep-2026",
@@ -216,7 +266,17 @@
     "bookingStatus": "Confirmed",
     "paymentLinks": [],
     "createdAt": "2026-04-12T10:00:00.000Z",
-    "updatedAt": "2026-04-12T10:00:00.000Z"
+    "updatedAt": "2026-04-12T10:00:00.000Z",
+    "vendorId": null,
+    "isAjsShow": true,
+    "fullPrice": 50000,
+    "discountPercent": 0,
+    "discountAmount": 0,
+    "paymentStatus": "Partial",
+    "reversalStatus": "NotEligible",
+    "reversalAmount": 0,
+    "reversalDate": null,
+    "reversalApprovedBy": null
   },
   {
     "id": "13551cda-98de-4194-9eba-c48ebb41196f",
@@ -250,6 +310,16 @@
     "bookingStatus": "Enquiry",
     "paymentLinks": [],
     "createdAt": "2026-04-13T13:01:51.997Z",
-    "updatedAt": "2026-04-13T13:01:51.997Z"
+    "updatedAt": "2026-04-13T13:01:51.997Z",
+    "vendorId": null,
+    "isAjsShow": true,
+    "fullPrice": 425000,
+    "discountPercent": 0,
+    "discountAmount": 0,
+    "paymentStatus": "Partial",
+    "reversalStatus": "NotEligible",
+    "reversalAmount": 0,
+    "reversalDate": null,
+    "reversalApprovedBy": null
   }
 ]

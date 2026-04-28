@@ -85,6 +85,7 @@ function showView(name) {
   if (name === 'payments')  renderPaymentsView();
   if (name === 'team')      renderTeamView();
   if (name === 'analytics') renderAnalyticsView();
+  if (name === 'loyalty')   renderLoyaltyView();
 }
 
 /* ─── Dashboard ──────────────────────────────────────────────────────────── */
@@ -1500,4 +1501,279 @@ function showToast(message, type = 'info') {
   toast.textContent = message;
   toast.className   = `toast ${type} show`;
   toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LOYALTY VIEW — Vendor list, reversal queue, manual show, FY report, audit
+═══════════════════════════════════════════════════════════════════════════ */
+
+let LOY_VENDORS = [];
+let LOY_OVERRIDE_VENDOR_ID = null;
+
+function loyEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function loyShowTab(name) {
+  document.querySelectorAll('.loy-tab').forEach(t => t.classList.toggle('active', t.dataset.loyTab === name));
+  document.querySelectorAll('.loy-panel').forEach(p => p.style.display = (p.id === 'loy-panel-' + name) ? '' : 'none');
+  if (name === 'vendors')   loyLoadVendors();
+  if (name === 'reversals') loyLoadReversals();
+  if (name === 'manual')    loyLoadVendorOptions();
+  if (name === 'report')    loyLoadReport();
+  if (name === 'audit')     loyLoadAudit();
+}
+
+async function renderLoyaltyView() {
+  loyShowTab('vendors');
+  // Preload reversal queue silently so the count badge appears on the Reversal tab
+  setTimeout(() => { loyLoadReversals().catch(() => {}); }, 200);
+}
+
+function loyTierIcon(tier) {
+  if (tier === 'Platinum') return 'crown';
+  if (tier === 'Gold' || tier === 'Silver') return 'medal';
+  return 'circle';
+}
+function loyInitials(name) {
+  return (name || '?').split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+}
+function loyTierBadge(tier) {
+  if (!tier) return `<span class="badge badge-tier-none">—</span>`;
+  return `<span class="badge badge-tier-${tier}"><i class="fas fa-${loyTierIcon(tier)}"></i> ${tier}</span>`;
+}
+
+async function loyLoadVendors() {
+  const tbody = document.getElementById('loy-vendors-body');
+  tbody.innerHTML = `<tr><td colspan="6" class="loy-empty"><i class="fas fa-circle-notch fa-spin"></i> Loading…</td></tr>`;
+  try {
+    const rows = await api('GET', '/api/admin/loyalty/vendors');
+    LOY_VENDORS = rows;
+    document.getElementById('loy-vendor-count').textContent = `(${rows.length})`;
+    if (rows.length) {
+      document.getElementById('loyalty-fy-badge').innerHTML = `<i class="fas fa-calendar"></i> FY ${rows[0].fiscalYear}`;
+    }
+    // Populate tier summary pills
+    const counts = { Silver: 0, Gold: 0, Platinum: 0 };
+    rows.forEach(r => { if (counts[r.currentTier] !== undefined) counts[r.currentTier]++; });
+    document.getElementById('lts-silver').textContent   = counts.Silver;
+    document.getElementById('lts-gold').textContent     = counts.Gold;
+    document.getElementById('lts-platinum').textContent = counts.Platinum;
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="loy-empty">No vendors yet. They sign up at <code>/vendor-login</code>.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(v => `
+      <tr>
+        <td>
+          <div class="loy-vendor-cell">
+            <div class="loy-vendor-avatar">${loyInitials(v.name)}</div>
+            <div>
+              <div class="loy-vendor-name">${loyEsc(v.name)}${v.manualTierOverride ? ' <i class="fas fa-shield-halved loy-override-flag" title="Manual tier override"></i>' : ''}</div>
+              <div class="loy-vendor-meta">${loyEsc(v.companyName || v.email)}</div>
+            </div>
+          </div>
+        </td>
+        <td>${loyTierBadge(v.currentTier)}</td>
+        <td><span class="loy-discount-pct">${v.discountPercent}%</span></td>
+        <td>
+          <div class="loy-money">${formatCurrency(v.ytdSales)}</div>
+          <div class="loy-money-2">YTD ${v.fiscalYear}</div>
+        </td>
+        <td><div class="loy-money">${v.ytdShowCount}</div></td>
+        <td class="text-right">
+          <div class="loy-actions">
+            <button class="btn btn-ghost loy-btn-mini" onclick='loyOpenOverride(${JSON.stringify(v).replace(/'/g, "&#39;")})'><i class="fas fa-shield-halved"></i> Override</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    showToast('Failed to load vendors: ' + err.message, 'error');
+  }
+}
+
+async function loyLoadReversals() {
+  const tbody = document.getElementById('loy-reversals-body');
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px"><i class="fas fa-circle-notch fa-spin"></i> Loading…</td></tr>`;
+  try {
+    const [bookings, vendors] = await Promise.all([
+      api('GET', '/api/bookings'),
+      LOY_VENDORS.length ? Promise.resolve(LOY_VENDORS) : api('GET', '/api/admin/loyalty/vendors'),
+    ]);
+    if (!LOY_VENDORS.length) LOY_VENDORS = vendors;
+    const byVendor = Object.fromEntries(vendors.map(v => [v.id, v]));
+    const queue = bookings.filter(b => b.reversalStatus === 'Eligible' || b.reversalStatus === 'Approved');
+    // Update pending count on the tab
+    const pending = queue.filter(b => b.reversalStatus === 'Eligible').length;
+    const countEl = document.getElementById('loy-rev-count');
+    if (countEl) countEl.textContent = pending > 0 ? pending : '';
+
+    if (!queue.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="loy-empty"><i class="fas fa-check-circle" style="color:#86efac;font-size:24px;display:block;margin-bottom:8px"></i>All caught up — no reversals pending.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = queue.map(b => {
+      const vendor = byVendor[b.vendorId] || {};
+      return `
+      <tr>
+        <td>
+          <div class="loy-vendor-cell">
+            <div class="loy-vendor-avatar">${loyInitials(vendor.name)}</div>
+            <div>
+              <div class="loy-vendor-name">${loyEsc(vendor.name || '—')}</div>
+              <div class="loy-vendor-meta">${loyTierBadge(vendor.currentTier)}</div>
+            </div>
+          </div>
+        </td>
+        <td>${loyEsc(b.eventType || '—')}<div class="loy-row-sub">${loyEsc(b.venue || '')}</div></td>
+        <td><div class="loy-money">${b.eventDate}</div></td>
+        <td><div class="loy-money">${formatCurrency(b.fullPrice || b.totalPrice)}</div></td>
+        <td><div class="loy-money" style="color:#86efac">${formatCurrency(b.discountAmount)}</div><div class="loy-row-sub">${b.discountPercent}% reversal</div></td>
+        <td><span class="badge badge-rev-${b.reversalStatus}">${b.reversalStatus}</span></td>
+        <td class="text-right">
+          ${b.reversalStatus === 'Eligible'
+            ? `<button class="btn btn-primary loy-btn-mini" onclick="loyApproveReversal('${b.id}')"><i class="fas fa-check"></i> Approve</button>`
+            : `<span class="loy-row-sub">Approved ${b.reversalDate ? new Date(b.reversalDate).toLocaleDateString() : ''}</span>`}
+        </td>
+      </tr>
+    `;}).join('');
+  } catch (err) {
+    showToast('Failed to load reversals: ' + err.message, 'error');
+  }
+}
+
+async function loyApproveReversal(id) {
+  if (!confirm('Approve discount reversal for this booking?')) return;
+  try {
+    await api('PATCH', `/api/admin/loyalty/booking/${id}/approve-reversal`);
+    showToast('Reversal approved.', 'success');
+    loyLoadReversals();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function loyLoadVendorOptions() {
+  if (!LOY_VENDORS.length) {
+    LOY_VENDORS = await api('GET', '/api/admin/loyalty/vendors');
+  }
+  const sel = document.getElementById('loy-ms-vendor');
+  sel.innerHTML = '<option value="">— Select vendor —</option>' +
+    LOY_VENDORS.map(v => `<option value="${v.id}">${loyEsc(v.name)} (${loyEsc(v.email)})</option>`).join('');
+}
+
+async function loySubmitManualShow(e) {
+  e.preventDefault();
+  const payload = {
+    vendorId:      document.getElementById('loy-ms-vendor').value,
+    showName:      document.getElementById('loy-ms-showName').value.trim(),
+    showDate:      document.getElementById('loy-ms-date').value,
+    amount:        Number(document.getElementById('loy-ms-amount').value) || 0,
+    venue:         document.getElementById('loy-ms-venue').value.trim(),
+    depositAmount: Number(document.getElementById('loy-ms-deposit').value) || 0,
+    isAjsShow:     document.getElementById('loy-ms-isAjs').value === 'true',
+    reason:        document.getElementById('loy-ms-reason').value.trim(),
+    remarks:       document.getElementById('loy-ms-remarks').value.trim(),
+  };
+  try {
+    await api('POST', '/api/admin/loyalty/manual-show', payload);
+    showToast('Manual show added.', 'success');
+    e.target.reset();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function loyLoadReport() {
+  const fy = document.getElementById('loy-report-fy').value.trim();
+  const url = fy ? `/api/admin/loyalty/report?fy=${encodeURIComponent(fy)}` : '/api/admin/loyalty/report';
+  try {
+    const data = await api('GET', url);
+    const grid = document.getElementById('loy-report-grid');
+    const counts = data.tierCounts || {};
+    grid.innerHTML = `
+      <div class="stat-card"><div class="stat-icon"><i class="fas fa-calendar"></i></div><div class="stat-body"><div class="stat-value">${data.fiscalYear}</div><div class="stat-label">Fiscal Year</div></div></div>
+      <div class="stat-card success"><div class="stat-icon"><i class="fas fa-rupee-sign"></i></div><div class="stat-body"><div class="stat-value">${formatCurrency(data.totalSales)}</div><div class="stat-label">Total AJ Sales</div></div></div>
+      <div class="stat-card accent"><div class="stat-icon"><i class="fas fa-headphones-alt"></i></div><div class="stat-body"><div class="stat-value">${data.totalShows}</div><div class="stat-label">Total AJ Shows</div></div></div>
+      <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-medal"></i></div><div class="stat-body"><div class="stat-value" style="font-size:0.95rem;line-height:1.6;font-weight:500">
+        <div>Silver: <strong>${counts.Silver || 0}</strong></div>
+        <div>Gold: <strong>${counts.Gold || 0}</strong></div>
+        <div>Platinum: <strong>${counts.Platinum || 0}</strong></div>
+      </div><div class="stat-label">Tier Distribution</div></div></div>
+    `;
+    const tbody = document.getElementById('loy-report-body');
+    if (!data.vendors.length) {
+      tbody.innerHTML = `<tr><td colspan="4" class="loy-empty">No vendors.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = data.vendors.map(v => `
+      <tr>
+        <td>
+          <div class="loy-vendor-cell">
+            <div class="loy-vendor-avatar">${loyInitials(v.name)}</div>
+            <div>
+              <div class="loy-vendor-name">${loyEsc(v.name)}</div>
+              <div class="loy-vendor-meta">${loyEsc(v.companyName || '')}</div>
+            </div>
+          </div>
+        </td>
+        <td>${loyTierBadge(v.currentTier === 'None' ? null : v.currentTier)}</td>
+        <td><div class="loy-money">${formatCurrency(v.ytdSales)}</div></td>
+        <td><div class="loy-money">${v.ytdShowCount}</div></td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    showToast('Failed to load report: ' + err.message, 'error');
+  }
+}
+
+async function loyLoadAudit() {
+  try {
+    const rows = await api('GET', '/api/admin/loyalty/audit');
+    const vendors = LOY_VENDORS.length ? LOY_VENDORS : await api('GET', '/api/admin/loyalty/vendors');
+    const byId = Object.fromEntries(vendors.map(v => [v.id, v.name]));
+    const tbody = document.getElementById('loy-audit-body');
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="loy-empty">No tier overrides yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>
+          <div class="loy-money">${new Date(r.at).toLocaleDateString()}</div>
+          <div class="loy-row-sub">${new Date(r.at).toLocaleTimeString()}</div>
+        </td>
+        <td>${loyEsc(byId[r.vendorId] || r.vendorId)}</td>
+        <td>${loyTierBadge(r.fromTier)} <i class="fas fa-arrow-right" style="color:var(--text-3);margin:0 6px"></i> ${loyTierBadge(r.toTier)}</td>
+        <td>${loyEsc(r.reason || '—')}</td>
+        <td>${loyEsc(r.byName || r.by || '—')}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    showToast('Failed to load audit: ' + err.message, 'error');
+  }
+}
+
+function loyOpenOverride(v) {
+  LOY_OVERRIDE_VENDOR_ID = v.id;
+  document.getElementById('loy-ov-vendorName').value = v.name;
+  document.getElementById('loy-ov-tier').value = (v.manualTierOverride && v.manualTierOverride.tier) || '';
+  document.getElementById('loy-ov-reason').value = '';
+  openModalEl('loyalty-override-modal');
+}
+
+async function loySubmitOverride() {
+  const tier   = document.getElementById('loy-ov-tier').value;
+  const reason = document.getElementById('loy-ov-reason').value.trim();
+  if (!reason) return showToast('Reason is required for the audit log.', 'error');
+  try {
+    await api('POST', `/api/admin/loyalty/vendor/${LOY_OVERRIDE_VENDOR_ID}/override-tier`, { tier: tier || null, reason });
+    showToast('Tier override saved.', 'success');
+    closeModal('loyalty-override-modal');
+    loyLoadVendors();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }

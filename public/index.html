@@ -43,6 +43,9 @@
         <button class="nav-btn" data-view="team" onclick="showView('team')">
           <i class="fas fa-users"></i> Team
         </button>
+        <button class="nav-btn" data-view="loyalty" onclick="showView('loyalty')">
+          <i class="fas fa-medal"></i> Loyalty
+        </button>
       </nav>
 
       <!-- User menu -->
@@ -491,6 +494,171 @@
           <div class="card">
             <div class="card-header"><h2><i class="fas fa-coins"></i> Profitability</h2></div>
             <div style="padding:16px 20px" id="an-profit-section"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LOYALTY VIEW ───────────────────────────────────────────────────── -->
+    <div id="view-loyalty" class="view">
+      <div class="page-header">
+        <div>
+          <h1>Vendor Loyalty</h1>
+          <span class="date-badge" id="loyalty-fy-badge"><i class="fas fa-calendar"></i> FY —</span>
+        </div>
+        <div class="loy-tier-summary" id="loy-tier-summary">
+          <div class="lts-pill lts-silver"><i class="fas fa-medal"></i> Silver <strong id="lts-silver">0</strong></div>
+          <div class="lts-pill lts-gold"><i class="fas fa-medal"></i> Gold <strong id="lts-gold">0</strong></div>
+          <div class="lts-pill lts-platinum"><i class="fas fa-crown"></i> Platinum <strong id="lts-platinum">0</strong></div>
+        </div>
+      </div>
+
+      <!-- Sub-tab bar -->
+      <div class="loyalty-tabs">
+        <button class="loy-tab active" data-loy-tab="vendors"   onclick="loyShowTab('vendors')"><i class="fas fa-users"></i> Vendors</button>
+        <button class="loy-tab"        data-loy-tab="reversals" onclick="loyShowTab('reversals')"><i class="fas fa-rotate-left"></i> Reversal Queue <span class="loy-tab-count" id="loy-rev-count"></span></button>
+        <button class="loy-tab"        data-loy-tab="manual"    onclick="loyShowTab('manual')"><i class="fas fa-plus-circle"></i> Manual Show</button>
+        <button class="loy-tab"        data-loy-tab="report"    onclick="loyShowTab('report')"><i class="fas fa-chart-pie"></i> FY Report</button>
+        <button class="loy-tab"        data-loy-tab="audit"     onclick="loyShowTab('audit')"><i class="fas fa-clipboard-list"></i> Audit Log</button>
+      </div>
+
+      <!-- Vendors -->
+      <div class="loy-panel" id="loy-panel-vendors">
+        <div class="card">
+          <div class="card-header"><h2><i class="fas fa-users"></i> Vendors <span id="loy-vendor-count" class="muted-count">0</span></h2></div>
+          <div class="loy-table-wrap">
+            <table class="table loy-table">
+              <thead>
+                <tr>
+                  <th>Vendor</th>
+                  <th>Tier</th>
+                  <th>Discount</th>
+                  <th>YTD Sales</th>
+                  <th>Shows</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="loy-vendors-body">
+                <tr><td colspan="6" class="loy-empty"><i class="fas fa-circle-notch fa-spin"></i> Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reversals -->
+      <div class="loy-panel" id="loy-panel-reversals" style="display:none">
+        <div class="card">
+          <div class="card-header"><h2><i class="fas fa-rotate-left"></i> Reversal Queue</h2></div>
+          <div class="loy-table-wrap">
+            <table class="table loy-table">
+              <thead>
+                <tr>
+                  <th>Vendor</th><th>Event</th><th>Date</th>
+                  <th>Full Price</th><th>Reversal Amount</th>
+                  <th>Status</th><th class="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="loy-reversals-body">
+                <tr><td colspan="7" class="loy-empty">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual Show -->
+      <div class="loy-panel" id="loy-panel-manual" style="display:none">
+        <div class="card">
+          <div class="card-header"><h2><i class="fas fa-plus-circle"></i> Add Manual Show Entry</h2></div>
+          <form id="loy-manual-form" class="loy-form" onsubmit="loySubmitManualShow(event)">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Vendor <span class="req">*</span></label>
+                <select id="loy-ms-vendor" required></select>
+              </div>
+              <div class="form-group">
+                <label>Show Name / Event <span class="req">*</span></label>
+                <input id="loy-ms-showName" type="text" required placeholder="e.g. Diwali Concert" />
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Show Date <span class="req">*</span></label>
+                <input id="loy-ms-date" type="date" required />
+              </div>
+              <div class="form-group">
+                <label>Amount (₹) <span class="req">*</span></label>
+                <input id="loy-ms-amount" type="number" min="0" step="1000" required placeholder="e.g. 150000" />
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Venue</label>
+                <input id="loy-ms-venue" type="text" placeholder="Venue name" />
+              </div>
+              <div class="form-group">
+                <label>Deposit Already Paid (₹)</label>
+                <input id="loy-ms-deposit" type="number" min="0" value="0" />
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>AJ's Show?</label>
+                <select id="loy-ms-isAjs">
+                  <option value="true">Yes — counts toward tier</option>
+                  <option value="false">No — non-AJ show</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Reason / Note <span class="hint">(audit)</span></label>
+                <input id="loy-ms-reason" type="text" placeholder="Why is this being added manually?" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Remarks</label>
+              <textarea id="loy-ms-remarks" rows="2"></textarea>
+            </div>
+            <div class="loy-form-actions">
+              <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Add Show</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- FY Report -->
+      <div class="loy-panel" id="loy-panel-report" style="display:none">
+        <div class="card">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <h2><i class="fas fa-chart-pie"></i> Fiscal Year Report</h2>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="loy-report-fy" type="text" placeholder="e.g. 2026-2027" class="loy-fy-input" />
+              <button class="btn btn-ghost" onclick="loyLoadReport()"><i class="fas fa-rotate"></i> Reload</button>
+            </div>
+          </div>
+          <div class="stats-grid loy-report-stats" id="loy-report-grid"></div>
+          <div class="loy-table-wrap">
+            <table class="table loy-table">
+              <thead>
+                <tr><th>Vendor</th><th>Tier</th><th>YTD Sales</th><th>Shows</th></tr>
+              </thead>
+              <tbody id="loy-report-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audit -->
+      <div class="loy-panel" id="loy-panel-audit" style="display:none">
+        <div class="card">
+          <div class="card-header"><h2><i class="fas fa-clipboard-list"></i> Tier Override Audit Log</h2></div>
+          <div class="loy-table-wrap">
+            <table class="table loy-table">
+              <thead>
+                <tr><th>When</th><th>Vendor</th><th>From → To</th><th>Reason</th><th>By</th></tr>
+              </thead>
+              <tbody id="loy-audit-body"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -1009,6 +1177,41 @@
         <button class="btn btn-danger" id="confirm-delete-btn">
           <i class="fas fa-trash-alt"></i> Delete
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       LOYALTY — TIER OVERRIDE MODAL
+  ═════════════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="loyalty-override-modal" onclick="handleOverlayClick(event,'loyalty-override-modal')">
+    <div class="modal modal-small">
+      <div class="modal-header">
+        <h2><i class="fas fa-shield-halved"></i> Override Tier</h2>
+        <button class="modal-close" onclick="closeModal('loyalty-override-modal')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Vendor</label>
+          <input id="loy-ov-vendorName" class="filter-select" type="text" disabled style="width:100%" />
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Tier (leave blank to clear override)</label>
+          <select id="loy-ov-tier" class="filter-select" style="width:100%">
+            <option value="">— Auto (no override) —</option>
+            <option value="Silver">Silver</option>
+            <option value="Gold">Gold</option>
+            <option value="Platinum">Platinum</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Reason (required, written to audit log)</label>
+          <textarea id="loy-ov-reason" class="filter-select" rows="3" style="width:100%;resize:vertical"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('loyalty-override-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="loySubmitOverride()"><i class="fas fa-save"></i> Save</button>
       </div>
     </div>
   </div>

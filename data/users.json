@@ -43,5 +43,23 @@
     "googleId": null,
     "picture": null,
     "createdAt": "2026-04-15T06:58:38.245Z"
+  },
+  {
+    "id": "1ca03e57-62d5-4e01-8349-820d6634976a",
+    "name": "khushali",
+    "email": "lathigrakhushali@gmail.com",
+    "password": "$2b$12$MUwHJaoqjuIAsV/K.BpcOel08dYicWsPrbF8lUwLSjEsRhXWBRj/u",
+    "googleId": null,
+    "picture": null,
+    "createdAt": "2026-04-28T12:52:31.199Z"
+  },
+  {
+    "id": "631505dd-e485-4d32-a712-eff4eff14050",
+    "name": "khushi",
+    "email": "khushali.lathigra@gmail.com",
+    "password": "$2b$12$ji3LYSaGJMQLelYR2JeYFOMYJHrEJUH.1b6AIkIe0g1L7SPy0XC6e",
+    "googleId": null,
+    "picture": null,
+    "createdAt": "2026-04-28T13:09:53.046Z"
   }
 ]
