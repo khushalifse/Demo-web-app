@@ -16,36 +16,40 @@
     <div class="header-inner">
 
       <!-- AJ Logo — clicking goes to dashboard -->
-      <a class="logo" href="#" onclick="showView('dashboard'); return false;">
+      <a class="logo" href="/admin-customers.html" title="Vendor Admin">
         <img src="/aj-logo.png" alt="AJ" class="logo-aj-img" />
-        <span class="logo-wordmark">DJ <strong>Studio</strong></span>
       </a>
 
       <nav class="nav">
-        <button class="nav-btn active" data-view="dashboard" onclick="showView('dashboard')">
+        <!-- Most modules are temporarily hidden — admin is focused on the
+             loyalty programme. To restore, remove the style="display:none". -->
+        <button class="nav-btn active" data-view="dashboard" onclick="showView('dashboard')" style="display:none">
           <i class="fas fa-chart-line"></i> Dashboard
         </button>
-        <button class="nav-btn" data-view="bookings" onclick="showView('bookings')">
+        <button class="nav-btn" data-view="bookings" onclick="showView('bookings')" style="display:none">
           <i class="fas fa-calendar-alt"></i> Bookings
         </button>
-        <button class="nav-btn" data-view="calendar" onclick="showView('calendar')">
+        <button class="nav-btn" data-view="calendar" onclick="showView('calendar')" style="display:none">
           <i class="fas fa-calendar-week"></i> Availability
         </button>
-        <button class="nav-btn" data-view="analytics" onclick="showView('analytics')">
+        <button class="nav-btn" data-view="analytics" onclick="showView('analytics')" style="display:none">
           <i class="fas fa-chart-bar"></i> Analytics
         </button>
-        <button class="nav-btn" data-view="calculations" onclick="showView('calculations')">
+        <button class="nav-btn" data-view="calculations" onclick="showView('calculations')" style="display:none">
           <i class="fas fa-calculator"></i> Calculations
         </button>
-        <button class="nav-btn" data-view="payments" onclick="showView('payments')">
+        <button class="nav-btn" data-view="payments" onclick="showView('payments')" style="display:none">
           <i class="fas fa-rupee-sign"></i> Payments
         </button>
-        <button class="nav-btn" data-view="team" onclick="showView('team')">
+        <button class="nav-btn" data-view="team" onclick="showView('team')" style="display:none">
           <i class="fas fa-users"></i> Team
         </button>
-        <button class="nav-btn" data-view="loyalty" onclick="showView('loyalty')">
+        <button class="nav-btn" data-view="loyalty" onclick="showView('loyalty')" style="display:none">
           <i class="fas fa-medal"></i> Loyalty
         </button>
+        <a class="nav-btn active" href="admin-customers.html" style="text-decoration:none">
+          <i class="fas fa-handshake"></i> Vendors
+        </a>
       </nav>
 
       <!-- User menu -->
@@ -54,6 +58,9 @@
         <div class="user-info" id="userInfo">
           <span class="user-name" id="userName">Loading…</span>
         </div>
+        <button class="nav-btn" onclick="openCredentialsModal()" title="Change credentials" style="padding:7px 10px">
+          <i class="fas fa-key"></i>
+        </button>
         <button class="nav-btn" onclick="logout()" title="Sign out" style="padding:7px 10px">
           <i class="fas fa-sign-out-alt"></i>
         </button>
@@ -679,6 +686,30 @@
       <div class="modal-body">
         <form id="booking-form" onsubmit="handleFormSubmit(event)" novalidate>
 
+          <div class="form-section-title">Vendor</div>
+          <div class="form-group">
+            <label>Booking Source <span class="hint">(select a registered vendor or treat as a direct customer)</span></label>
+            <select id="f-vendorSelect" onchange="onVendorSelectChange()">
+              <option value="">— Direct customer (no vendor) —</option>
+            </select>
+          </div>
+
+          <!-- Live tier + commission preview, shown when a vendor is selected -->
+          <div id="vendor-tier-card" style="display:none;margin:8px 0 16px;padding:14px 16px;background:linear-gradient(135deg,var(--accent-glow),rgba(124,58,237,0.10));border:1px solid var(--border);border-radius:var(--radius)">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <div style="width:42px;height:42px;border-radius:12px;background:var(--accent-glow);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px"><i class="fas fa-medal"></i></div>
+              <div style="flex:1;min-width:200px">
+                <div style="font-weight:700;font-size:0.95rem"><span id="vt-name">—</span></div>
+                <div style="color:var(--text-2);font-size:0.82rem">Tier: <strong id="vt-tier" style="color:var(--text)">—</strong> · Commission rate: <strong id="vt-rate" style="color:var(--text)">0%</strong></div>
+              </div>
+              <div style="text-align:right">
+                <div style="color:var(--text-2);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Commission this booking</div>
+                <div style="font-weight:800;color:var(--accent);font-size:1.2rem" id="vt-commission">₹0</div>
+                <div style="color:var(--text-3);font-size:0.7rem">on net (excl. GST)</div>
+              </div>
+            </div>
+          </div>
+
           <div class="form-section-title">Client &amp; Host Details</div>
           <div class="form-grid">
             <div class="form-group">
@@ -1213,6 +1244,48 @@
         <button class="btn btn-ghost" onclick="closeModal('loyalty-override-modal')">Cancel</button>
         <button class="btn btn-primary" onclick="loySubmitOverride()"><i class="fas fa-save"></i> Save</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Credentials Modal (Super Admin self-service) -->
+  <div class="modal-overlay" id="credentials-modal" onclick="handleOverlayClick(event,'credentials-modal')">
+    <div class="modal modal-small">
+      <div class="modal-header">
+        <h2><i class="fas fa-key"></i> Change Credentials</h2>
+        <button class="modal-close" onclick="closeModal('credentials-modal')" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="credentialsForm" onsubmit="submitCredentials(event)" novalidate>
+        <div class="modal-body">
+          <p style="color:var(--text-2);font-size:0.85rem;margin-bottom:16px">
+            Update your super admin login. Leave a field blank to keep it unchanged.
+          </p>
+          <div class="form-group">
+            <label>Display Name</label>
+            <input type="text" id="cred-name" placeholder="Super Admin" />
+          </div>
+          <div class="form-group">
+            <label>New Email</label>
+            <input type="email" id="cred-email" placeholder="admin@aj.com" autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label>New Password <span style="color:var(--text-3);font-weight:400">(min 6 chars, leave blank to keep)</span></label>
+            <input type="password" id="cred-newPassword" placeholder="••••••" minlength="6" autocomplete="new-password" />
+          </div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0" />
+          <div class="form-group">
+            <label>Current Password *</label>
+            <input type="password" id="cred-currentPassword" placeholder="Confirm your current password" required autocomplete="current-password" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal('credentials-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="credSubmitBtn">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 

@@ -32,28 +32,12 @@ router.get('/config', (req, res) => {
 });
 
 /* ── POST /api/auth/signup ────────────────────────────────────────────────── */
-router.post('/signup', async (req, res) => {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password)
-    return res.status(400).json({ error: 'Name, email and password are required.' });
-  if (password.length < 6)
-    return res.status(400).json({ error: 'Password must be at least 6 characters.' });
-
-  const users = readUsers();
-  if (users.find(u => u.email.toLowerCase() === email.toLowerCase()))
-    return res.status(409).json({ error: 'An account with this email already exists.' });
-
-  const hashed = await bcrypt.hash(password, 12);
-  const user = {
-    id: uuidv4(), name, email: email.toLowerCase(),
-    password: hashed, googleId: null, picture: null,
-    createdAt: new Date().toISOString(),
-  };
-  users.push(user);
-  writeUsers(users);
-
-  req.session.user = safeUser(user);
-  res.json({ success: true, user: req.session.user });
+// Super-admin signup is disabled — only one predefined admin exists.
+// (Customer self-registration still works via /api/customer-auth/signup.)
+router.post('/signup', (req, res) => {
+  res.status(403).json({
+    error: 'Super admin signup is disabled. Sign in with the predefined credentials.',
+  });
 });
 
 /* ── POST /api/auth/login ─────────────────────────────────────────────────── */
@@ -80,6 +64,54 @@ router.post('/login', async (req, res) => {
 /* ── POST /api/auth/logout ────────────────────────────────────────────────── */
 router.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
+});
+
+/* ── PATCH /api/auth/credentials ──────────────────────────────────────────── */
+// Update the logged-in super admin's email, name, or password.
+// Requires the current password as confirmation.
+router.patch('/credentials', async (req, res) => {
+  if (!req.session || !req.session.user)
+    return res.status(401).json({ error: 'Authentication required.' });
+
+  const { currentPassword, newName, newEmail, newPassword } = req.body || {};
+  if (!currentPassword)
+    return res.status(400).json({ error: 'Current password is required.' });
+
+  const users = readUsers();
+  const idx = users.findIndex(u => u.id === req.session.user.id);
+  if (idx === -1) return res.status(404).json({ error: 'Account not found.' });
+
+  const valid = await bcrypt.compare(currentPassword, users[idx].password || '');
+  if (!valid) return res.status(401).json({ error: 'Current password is incorrect.' });
+
+  let changed = false;
+
+  if (newName && newName.trim() && newName.trim() !== users[idx].name) {
+    users[idx].name = newName.trim();
+    changed = true;
+  }
+
+  if (newEmail && newEmail.toLowerCase() !== users[idx].email) {
+    const e = newEmail.toLowerCase();
+    if (users.some((u, i) => i !== idx && (u.email || '').toLowerCase() === e))
+      return res.status(409).json({ error: 'That email is already in use.' });
+    users[idx].email = e;
+    changed = true;
+  }
+
+  if (newPassword) {
+    if (newPassword.length < 6)
+      return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+    users[idx].password = await bcrypt.hash(newPassword, 12);
+    changed = true;
+  }
+
+  if (!changed)
+    return res.status(400).json({ error: 'Nothing to update — provide a new name, email, or password.' });
+
+  writeUsers(users);
+  req.session.user = safeUser(users[idx]);
+  res.json({ success: true, user: req.session.user });
 });
 
 /* ══════════════════════════════════════════════════════════════════════════

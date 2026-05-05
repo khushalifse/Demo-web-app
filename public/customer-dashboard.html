@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AJ Vendor Portal — Loyalty Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* ── Tier hero ── */
+    .tier-hero {
+      position: relative; overflow: hidden;
+      display: grid; grid-template-columns: auto 1fr auto; gap: 28px; align-items: center;
+      padding: 36px 40px;
+      border-radius: var(--radius-lg);
+      color: #fff; margin-bottom: 24px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.4);
+    }
+    /* Subtle dark overlay so white text stays readable on the lighter gradient stops */
+    .tier-hero::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(0,0,0,0.18), rgba(0,0,0,0.40));
+      pointer-events: none;
+    }
+    .tier-hero::before {
+      content: ''; position: absolute; inset: 0; z-index: 1;
+      background: radial-gradient(circle at 80% 30%, rgba(255,255,255,0.14), transparent 55%);
+      pointer-events: none;
+    }
+    .tier-hero > * { position: relative; z-index: 2; }
+    .tier-hero, .tier-hero * { text-shadow: 0 1px 3px rgba(0,0,0,0.45); }
+
+    .tier-hero.unranked { background: linear-gradient(135deg, #475569, #1e293b); }
+    .tier-hero.bronze {
+      background: linear-gradient(135deg, #cd7f32 0%, #b45309 45%, #7c2d12 100%);
+    }
+    .tier-hero.silver {
+      background: linear-gradient(135deg, #cbd5e1 0%, #64748b 50%, #334155 100%);
+    }
+    .tier-hero.gold {
+      background: linear-gradient(135deg, #fbbf24 0%, #d97706 50%, #92400e 100%);
+    }
+    .tier-hero.platinum {
+      background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 50%, #4c1d95 100%);
+    }
+
+    .tier-badge {
+      width: 96px; height: 96px; border-radius: 24px;
+      background: rgba(255,255,255,0.18); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 44px;
+    }
+    .tier-info .th-label { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.85; font-weight: 600; }
+    .tier-info .th-name  { font-size: 38px; font-weight: 800; margin: 4px 0 6px; line-height: 1.1; }
+    .tier-info .th-rate  { font-size: 14px; opacity: 0.92; }
+
+    .tier-stats { text-align: right; }
+    .tier-stats .ts-value { font-size: 32px; font-weight: 800; line-height: 1.1; }
+    .tier-stats .ts-label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; opacity: 0.85; margin-top: 4px; font-weight: 600; }
+
+    /* ── Loyalty validity banner ── */
+    .validity-banner {
+      display: grid; grid-template-columns: auto 1fr auto;
+      align-items: center; gap: 18px;
+      padding: 18px 24px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      margin-bottom: 24px;
+    }
+    .validity-banner.warning { border-color: var(--warning); }
+    .validity-banner.danger,
+    .validity-banner.expired { border-color: var(--danger); }
+
+    .vb-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--success-bg); color: var(--success);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .validity-banner.warning .vb-icon { background: var(--warning-bg); color: var(--warning); }
+    .validity-banner.danger  .vb-icon { background: var(--danger-bg);  color: var(--danger); }
+    .validity-banner.expired .vb-icon { background: var(--danger-bg);  color: var(--danger); }
+
+    .vb-label { font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase; color: var(--text-2); font-weight: 600; }
+    .vb-value { font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 2px; }
+    .validity-banner.warning .vb-value { color: var(--warning); }
+    .validity-banner.danger  .vb-value { color: var(--danger); }
+    .validity-banner.expired .vb-value { color: var(--danger); }
+
+    .vb-dates { display: flex; flex-direction: column; gap: 4px; text-align: right; }
+    .vb-row   { font-size: 0.78rem; color: var(--text-2); display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
+    .vb-row strong { color: var(--text); font-variant-numeric: tabular-nums; }
+
+    /* ── Earnings spotlight ── */
+    .earnings-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px; margin-bottom: 24px;
+    }
+    .earnings-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 22px 24px;
+    }
+    .earnings-card.highlight {
+      background: linear-gradient(135deg, var(--accent-glow), rgba(124,58,237,0.10));
+      border-color: rgba(240,88,41,0.4);
+    }
+    .ec-label { font-size: 12px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-2); font-weight: 600; }
+    .ec-value { font-size: 28px; font-weight: 800; margin-top: 6px; }
+    .ec-value.accent { color: var(--accent); }
+    .ec-value.success { color: var(--success); }
+    .ec-sub   { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+
+    /* ── Progress card ── */
+    .progress-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px;
+    }
+    .pw-head {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: 14px; flex-wrap: wrap; gap: 12px;
+    }
+    .pw-title { font-weight: 700; font-size: 1.05rem; }
+    .pw-sub   { color: var(--text-2); font-size: 0.85rem; margin-top: 2px; }
+    .pw-pct   { font-weight: 800; font-size: 1.4rem; color: var(--accent); }
+    .pw-bar   { height: 12px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+    .pw-fill  {
+      height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-h));
+      transition: width 0.6s ease;
+      box-shadow: 0 0 16px rgba(240,88,41,0.4);
+    }
+    .pw-uplift {
+      margin-top: 16px; padding: 14px 16px;
+      background: var(--success-bg); border: 1px solid rgba(16,185,129,0.3);
+      border-radius: var(--radius); color: var(--success);
+      display: flex; align-items: center; gap: 12px;
+      font-size: 0.92rem;
+    }
+    .pw-uplift i { font-size: 1.2rem; }
+
+    /* ── Tier ladder ── */
+    .ladder-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px; padding: 20px 24px;
+    }
+    .ladder-card {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 20px;
+      transition: all 0.2s; position: relative;
+      overflow: hidden;
+    }
+    /* Subtle tier-colored top border accent so the colour reads even when locked */
+    .ladder-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    }
+    .ladder-card.tier-bronze::before   { background: linear-gradient(90deg, #b45309, #f97316); }
+    .ladder-card.tier-silver::before   { background: linear-gradient(90deg, #94a3b8, #e2e8f0); }
+    .ladder-card.tier-gold::before     { background: linear-gradient(90deg, #d97706, #fbbf24); }
+    .ladder-card.tier-platinum::before { background: linear-gradient(90deg, #4c1d95, #a78bfa); }
+
+    /* Tier-coloured backgrounds — applied to all cards (locked + unlocked + current).
+       Current card gets a stronger glow on top. */
+    .ladder-card.tier-bronze {
+      background: linear-gradient(135deg, rgba(180,83,9,0.18), rgba(249,115,22,0.10));
+      border-color: rgba(249,115,22,0.4);
+    }
+    .ladder-card.tier-silver {
+      background: linear-gradient(135deg, rgba(148,163,184,0.18), rgba(226,232,240,0.10));
+      border-color: rgba(148,163,184,0.4);
+    }
+    .ladder-card.tier-gold {
+      background: linear-gradient(135deg, rgba(217,119,6,0.18), rgba(251,191,36,0.12));
+      border-color: rgba(251,191,36,0.4);
+    }
+    .ladder-card.tier-platinum {
+      background: linear-gradient(135deg, rgba(76,29,149,0.20), rgba(167,139,250,0.12));
+      border-color: rgba(167,139,250,0.4);
+    }
+
+    /* Current tier — extra glow on top of the tier colour */
+    .ladder-card.current.tier-bronze   { box-shadow: 0 0 24px rgba(249,115,22,0.35);  border-color: #f97316; }
+    .ladder-card.current.tier-silver   { box-shadow: 0 0 24px rgba(203,213,225,0.30); border-color: #cbd5e1; }
+    .ladder-card.current.tier-gold     { box-shadow: 0 0 24px rgba(251,191,36,0.40);  border-color: #fbbf24; }
+    .ladder-card.current.tier-platinum { box-shadow: 0 0 24px rgba(167,139,250,0.40); border-color: #a78bfa; }
+
+    .ladder-card.locked { opacity: 0.7; }
+    .ladder-card.locked::after {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(13,13,20,0.35); pointer-events: none;
+    }
+
+    .lc-tier {
+      font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;
+    }
+    .lc-tier.bronze   { color: #fbbf24; }
+    .lc-tier.bronze   i { color: #f97316; }
+    .lc-tier.silver   { color: #e2e8f0; }
+    .lc-tier.silver   i { color: #cbd5e1; }
+    .lc-tier.gold     { color: #fbbf24; }
+    .lc-tier.gold     i { color: #fbbf24; }
+    .lc-tier.platinum { color: #c4b5fd; }
+    .lc-tier.platinum i { color: #c4b5fd; }
+    .lc-rate { font-size: 0.95rem; color: var(--text); margin-top: 6px; font-weight: 600; }
+    .lc-threshold { font-size: 0.78rem; color: var(--text-2); margin-top: 4px; }
+    .lc-status {
+      position: absolute; top: 12px; right: 12px;
+      padding: 3px 10px; border-radius: 999px;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .lc-status.unlocked { background: var(--success-bg); color: var(--success); }
+    .lc-status.current  { background: var(--accent); color: #fff; }
+    .lc-status.locked   { background: var(--surface); color: var(--text-3); }
+
+    /* ── Empty state ── */
+    .empty-state {
+      padding: 48px 24px; text-align: center; color: var(--text-2);
+    }
+    .empty-state i { font-size: 36px; color: var(--accent); opacity: 0.5; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 1.05rem; color: var(--text); margin: 8px 0; }
+    .empty-state p  { font-size: 0.88rem; max-width: 480px; margin: 0 auto; line-height: 1.6; }
+
+    /* ── CTA banner ── */
+    .cta-banner {
+      margin-top: 28px; padding: 24px 28px;
+      background: linear-gradient(135deg, rgba(240,88,41,0.12), rgba(124,58,237,0.10));
+      border: 1px solid var(--border); border-radius: var(--radius-lg);
+      display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    }
+    .cta-banner .cta-icon {
+      width: 56px; height: 56px; border-radius: 16px;
+      background: var(--accent-glow); color: var(--accent);
+      display: flex; align-items: center; justify-content: center; font-size: 24px;
+      flex-shrink: 0;
+    }
+    .cta-banner .cta-body { flex: 1; min-width: 240px; }
+    .cta-banner .cta-title { font-weight: 700; font-size: 1rem; }
+    .cta-banner .cta-sub   { color: var(--text-2); font-size: 0.88rem; margin-top: 4px; line-height: 1.5; }
+    .cta-banner .cta-mail  { font-weight: 700; color: var(--accent); }
+
+    .tier-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px; border-radius: 999px;
+      font-size: 0.78rem; font-weight: 600;
+      background: var(--surface-2); color: var(--text-2);
+      border: 1px solid var(--border);
+    }
+    .tier-pill.tier-bronze   { background: rgba(180,83,9,0.18);    color: #fbbf24; border-color: rgba(180,83,9,0.4); }
+    .tier-pill.tier-silver   { background: rgba(148,163,184,0.20); color: #cbd5e1; border-color: rgba(148,163,184,0.4); }
+    .tier-pill.tier-gold     { background: rgba(245,158,11,0.18);  color: #fcd34d; border-color: rgba(245,158,11,0.4); }
+    .tier-pill.tier-platinum { background: rgba(124,58,237,0.20);  color: #c4b5fd; border-color: rgba(124,58,237,0.4); }
+
+    .status-badge.pending   { background: var(--warning-bg); color: var(--warning); }
+    .status-badge.confirmed { background: var(--success-bg); color: var(--success); }
+    .status-badge.completed { background: var(--info-bg);    color: var(--info); }
+    .status-badge.cancelled { background: var(--danger-bg);  color: var(--danger); }
+
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 200;
+      padding: 12px 20px; border-radius: var(--radius);
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      box-shadow: var(--shadow); font-size: 0.9rem;
+      transform: translateY(20px); opacity: 0; pointer-events: none;
+      transition: all 0.25s;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { border-color: var(--danger);  color: var(--danger);  }
+
+    .text-right  { text-align: right;  }
+    .text-center { text-align: center; }
+
+    /* ─── Responsive ─── */
+    /* Tablet & smaller */
+    @media (max-width: 1024px) {
+      .main { padding: 16px 24px 32px; }
+      body.vendor-portal .header-inner { height: 64px; padding: 0 16px; }
+      body.vendor-portal .logo-aj-img { width: 44px; height: 44px; }
+      .tier-hero { grid-template-columns: auto 1fr; padding: 24px 28px; gap: 18px; }
+      .tier-hero .tier-stats { grid-column: 1 / -1; text-align: left; }
+      .tier-info .th-name { font-size: 28px; }
+      .tier-stats .ts-value { font-size: 26px; }
+      .earnings-grid { grid-template-columns: repeat(2, 1fr); }
+      .ladder-grid { grid-template-columns: repeat(2, 1fr); }
+      .validity-banner { grid-template-columns: auto 1fr; gap: 14px; padding: 14px 18px; }
+      .validity-banner .vb-dates { grid-column: 1 / -1; flex-direction: row; justify-content: flex-start; gap: 18px; text-align: left; }
+    }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      .main { padding: 16px 14px 32px; }
+      .page-header { flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 18px; }
+      .page-header h1 { font-size: 1.4rem; line-height: 1.25; }
+      .user-info { display: none; }
+
+      /* Tier hero — full impact on mobile, vertical stack with bigger badge */
+      .tier-hero {
+        grid-template-columns: 1fr;
+        padding: 24px 22px;
+        gap: 14px;
+        text-align: center;
+        border-radius: 18px;
+      }
+      .tier-hero::before { background: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.20), transparent 60%); }
+      .tier-badge {
+        width: 78px; height: 78px; font-size: 36px; border-radius: 22px;
+        margin: 0 auto;
+      }
+      .tier-info { text-align: center; }
+      .tier-info .th-label { font-size: 11px; }
+      .tier-info .th-name  { font-size: 30px; margin: 6px 0 4px; }
+      .tier-info .th-rate  { font-size: 13px; }
+      .tier-stats {
+        text-align: center; padding-top: 14px;
+        border-top: 1px solid rgba(255,255,255,0.22);
+      }
+      .tier-stats .ts-value { font-size: 24px; }
+      .tier-stats .ts-label { font-size: 10px; }
+
+      /* Earnings — single column, more breathing room, accent strip on top */
+      .earnings-grid { grid-template-columns: 1fr; gap: 12px; margin-bottom: 18px; }
+      .earnings-card {
+        padding: 18px 20px;
+        position: relative; overflow: hidden;
+      }
+      .earnings-card::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+        background: var(--accent);
+      }
+      .earnings-card.highlight::before { background: linear-gradient(90deg, var(--accent), var(--accent-h)); }
+      .earnings-card .ec-value { font-size: 24px; font-weight: 800; }
+      .earnings-card .ec-label { font-size: 11px; letter-spacing: 0.5px; }
+
+      /* Progress to next tier */
+      .progress-wrap { padding: 18px 20px; border-radius: 16px; }
+      .pw-head { flex-direction: column; align-items: flex-start; gap: 6px; }
+      .pw-title { font-size: 1rem; line-height: 1.35; }
+      .pw-pct   { font-size: 1.4rem; }
+
+      /* Loyalty ladder — tier cards full width with vibrant left accent */
+      .ladder-grid { grid-template-columns: 1fr; gap: 12px; padding: 18px 20px; }
+      .ladder-card { padding: 16px 18px; border-radius: 14px; }
+
+      /* Validity banner — compact two-row layout */
+      .validity-banner {
+        grid-template-columns: auto 1fr;
+        gap: 12px; padding: 14px 16px; border-radius: 14px;
+      }
+      .validity-banner .vb-icon { width: 38px; height: 38px; }
+      .validity-banner .vb-dates {
+        grid-column: 1 / -1; flex-direction: row; gap: 16px;
+        text-align: left; padding-top: 8px;
+        border-top: 1px solid var(--border);
+      }
+      .vb-row { font-size: 0.74rem; }
+
+      /* CTA banner — stack with centered icon on mobile */
+      .cta-banner { padding: 20px; flex-direction: column; align-items: flex-start; gap: 12px; border-radius: 16px; }
+      .cta-banner .cta-icon { width: 48px; height: 48px; font-size: 22px; }
+      .cta-banner .cta-title { font-size: 1.05rem; }
+
+      /* Modals fill the screen on phones */
+      .modal-overlay .modal { width: 100%; max-width: 100%; max-height: 100vh; border-radius: 0; }
+      .modal-body  { padding: 18px; }
+      .form-grid   { grid-template-columns: 1fr; }
+
+      /* Card headers stack vertically on mobile */
+      .card-header { flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 16px; }
+      .card-header h2 { font-size: 0.95rem; }
+    }
+
+    /* Tablet polish */
+    @media (max-width: 1024px) and (min-width: 601px) {
+      .tier-hero { padding: 28px 30px; }
+      .earnings-card { padding: 20px 22px; }
+    }
+  </style>
+</head>
+<body class="vendor-portal">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-inner">
+      <a class="logo" href="#" onclick="event.preventDefault()">
+        <img src="/aj-logo.png" alt="AJ" class="logo-aj-img" />
+      </a>
+      <nav class="nav"></nav>
+      <div class="user-menu">
+        <div class="user-avatar"><i class="fas fa-user"></i></div>
+        <div class="user-info">
+          <span class="user-name" id="customerName">Loading…</span>
+        </div>
+        <button class="nav-btn" onclick="openChangePassword()" title="Change password" style="padding:7px 10px">
+          <i class="fas fa-key"></i>
+        </button>
+        <button class="nav-btn" onclick="customerLogout()" title="Sign out" style="padding:7px 10px">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="page-header">
+      <div>
+        <h1>Welcome back, <span id="greetName">there</span> 👋</h1>
+        <span class="date-badge"><i class="fas fa-medal"></i> Your loyalty rewards &amp; commission earned</span>
+      </div>
+    </div>
+
+    <!-- Tier hero -->
+    <div class="tier-hero unranked" id="tierHero">
+      <div class="tier-badge"><i class="fas fa-medal" id="tierIcon"></i></div>
+      <div class="tier-info">
+        <div class="th-label">Current Tier</div>
+        <div class="th-name" id="th-tierName">—</div>
+        <div class="th-rate" id="th-tierRate">—</div>
+      </div>
+      <div class="tier-stats">
+        <div class="ts-value" id="th-business">—</div>
+        <div class="ts-label">Business given</div>
+      </div>
+    </div>
+
+    <!-- Loyalty validity banner -->
+    <div class="validity-banner" id="validityBanner">
+      <div class="vb-icon" id="vb-icon"><i class="fas fa-hourglass-half"></i></div>
+      <div class="vb-body">
+        <div class="vb-label">Loyalty Programme Validity</div>
+        <div class="vb-value" id="vb-summary">—</div>
+      </div>
+      <div class="vb-dates">
+        <div class="vb-row"><span>Started</span><strong id="vb-started">—</strong></div>
+        <div class="vb-row"><span>Expires</span><strong id="vb-expires">—</strong></div>
+      </div>
+    </div>
+
+    <!-- Earnings spotlight -->
+    <div class="earnings-grid">
+      <div class="earnings-card highlight">
+        <div class="ec-label"><i class="fas fa-coins"></i> Total Commission Earned</div>
+        <div class="ec-value accent" id="ec-totalEarned">—</div>
+        <div class="ec-sub">Across <span id="ec-eventCount">0</span> events</div>
+      </div>
+      <div class="earnings-card">
+        <div class="ec-label"><i class="fas fa-circle-check" style="color:var(--success)"></i> Commission Paid</div>
+        <div class="ec-value success" id="ec-paid">—</div>
+        <div class="ec-sub"><span id="ec-payCount">0</span> payments received</div>
+      </div>
+      <div class="earnings-card">
+        <div class="ec-label"><i class="fas fa-hourglass-half" style="color:var(--warning)"></i> Outstanding</div>
+        <div class="ec-value" id="ec-outstanding" style="color:var(--warning)">—</div>
+        <div class="ec-sub">earned but not yet paid</div>
+      </div>
+      <div class="earnings-card">
+        <div class="ec-label"><i class="fas fa-arrow-trend-up"></i> Commission Rate</div>
+        <div class="ec-value" id="ec-rate">—</div>
+        <div class="ec-sub">on every booking, at your tier</div>
+      </div>
+    </div>
+
+    <!-- Progress to next tier -->
+    <div class="progress-wrap" id="progressWrap" style="display:none">
+      <div class="pw-head">
+        <div>
+          <div class="pw-title">Just <span id="pw-remaining">—</span> away from <span id="pw-nextTier">—</span> 🚀</div>
+          <div class="pw-sub" id="pw-sub">Unlock a higher commission rate on every future booking</div>
+        </div>
+        <div class="pw-pct" id="pw-pct">0%</div>
+      </div>
+      <div class="pw-bar"><div class="pw-fill" id="pw-fill" style="width:0%"></div></div>
+      <div class="pw-uplift" id="pw-uplift" style="display:none">
+        <i class="fas fa-gift"></i>
+        <div>
+          <strong>Reach <span id="pw-upliftTier">—</span> and your past events would have earned an extra <span id="pw-upliftAmount">₹0</span>.</strong>
+          <div style="font-size:0.82rem;opacity:0.85;margin-top:2px">Future bookings stay at the higher rate.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loyalty Tier Ladder -->
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-header">
+        <h2><i class="fas fa-layer-group"></i> Loyalty Programme</h2>
+        <span style="color:var(--text-2);font-size:0.82rem">Climb the ladder to earn more on every event</span>
+      </div>
+      <div class="ladder-grid" id="ladderGrid"></div>
+    </div>
+
+    <!-- Per-event commission breakdown -->
+    <div class="card">
+      <div class="card-header">
+        <h2><i class="fas fa-history"></i> Commission by Event</h2>
+        <span style="color:var(--text-2);font-size:0.82rem" id="eventCount">0 events</span>
+      </div>
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width:10%;text-align:left">Start Date</th>
+              <th style="width:10%;text-align:left">End Date</th>
+              <th style="width:14%;text-align:left">Client</th>
+              <th style="text-align:left">Event</th>
+              <th style="width:9%;text-align:center">Tier</th>
+              <th style="width:13%;text-align:right">Booking Total</th>
+              <th style="width:6%;text-align:center">Rate</th>
+              <th style="width:14%;text-align:right">Commission</th>
+              <th style="width:11%;text-align:center">Payment</th>
+            </tr>
+          </thead>
+          <tbody id="eventsBody">
+            <tr><td colspan="7" class="empty-row"><i class="fas fa-circle-notch fa-spin"></i> Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Commissions Paid -->
+    <div class="card" style="margin-top:24px">
+      <div class="card-header">
+        <h2><i class="fas fa-money-check-dollar"></i> Commissions Paid</h2>
+        <span style="color:var(--text-2);font-size:0.82rem" id="paymentsCount">0 payments</span>
+      </div>
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width:14%;text-align:left">Date</th>
+              <th style="width:18%;text-align:right">Amount</th>
+              <th style="width:18%;text-align:left">Mode</th>
+              <th style="text-align:left">Notes</th>
+            </tr>
+          </thead>
+          <tbody id="paymentsBody">
+            <tr><td colspan="4" class="empty-row">No payments yet — your account manager will record them here.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-banner">
+      <div class="cta-icon"><i class="fas fa-handshake"></i></div>
+      <div class="cta-body">
+        <div class="cta-title">Plan your next event with us</div>
+        <div class="cta-sub">
+          More events = bigger commission &amp; higher tier. Reach out to your account manager
+          <span class="cta-mail" id="ctaMail">contact your account manager</span>
+          to schedule the next booking.
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Change Password Modal -->
+  <div class="modal-overlay" id="changePwdModal" onclick="if(event.target.id==='changePwdModal' && !FORCE_PWD_CHANGE) closeChangePassword()">
+    <div class="modal modal-small">
+      <div class="modal-header">
+        <h2><i class="fas fa-key"></i> <span id="cp-title">Change Password</span></h2>
+        <button class="modal-close" onclick="closeChangePassword()" id="cp-closeBtn" aria-label="Close"><i class="fas fa-times"></i></button>
+      </div>
+      <form id="changePwdForm" onsubmit="submitChangePassword(event)" novalidate>
+        <div class="modal-body">
+          <p id="cp-intro" style="color:var(--text-2);font-size:0.85rem;margin-bottom:14px"></p>
+          <div class="form-group">
+            <label>Current Password *</label>
+            <input type="password" id="cp-current" required autocomplete="current-password" />
+          </div>
+          <div class="form-group">
+            <label>New Password * <span style="color:var(--text-3);font-weight:400">(min 6 chars)</span></label>
+            <input type="password" id="cp-new" minlength="6" required autocomplete="new-password" />
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password *</label>
+            <input type="password" id="cp-confirm" minlength="6" required autocomplete="new-password" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeChangePassword()" id="cp-cancelBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="customer-dashboard.js"></script>
+</body>
+</html>

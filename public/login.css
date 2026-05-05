@@ -72,15 +72,11 @@ body {
   gap: 12px;
 }
 .brand-icon {
-  width: 44px; height: 44px;
-  border-radius: 12px;
-  background: #fff;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 24px var(--accent-glow);
-  overflow: hidden;
+  filter: drop-shadow(0 0 24px var(--accent-glow));
 }
 .brand-logo-img {
-  width: 34px; height: 34px;
+  width: 64px; height: 64px;
   object-fit: contain;
 }
 .brand-name {
@@ -250,6 +246,18 @@ body {
   text-align: center;
 }
 
+@media (max-width: 768px) {
+  .auth-wrapper { padding: 16px 14px 24px; }
+  .auth-card { padding: 24px 20px; }
+  .role-select { gap: 6px; }
+  .role-btn { padding: 10px 8px; font-size: 12px; }
+  .brand-logo-img { width: 56px; height: 56px; }
+}
 @media (max-width: 480px) {
   .auth-card { padding: 22px 18px; border-radius: 14px; }
+  .auth-tabs { font-size: 0.85rem; }
+  .auth-tab { padding: 7px 6px; }
+  .form-group input { padding: 11px 12px; font-size: 0.95rem; }
+  .btn-auth { padding: 12px; font-size: 0.95rem; }
+  .auth-footer { font-size: 11px; padding: 0 12px; }
 }

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AJ DJ Studio — Vendor Admin</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* Customer-admin specific tweaks layered on top of styles.css. */
+    .commission-input {
+      width: 80px; padding: 6px 8px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-size: 0.85rem; text-align: right;
+    }
+    .commission-input:focus { border-color: var(--accent); outline: none; }
+
+    .pocs-list { display: flex; flex-direction: column; gap: 8px; }
+    .poc-row { display: flex; gap: 8px; align-items: center; }
+    .poc-row input { flex: 1; }
+    .poc-remove {
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text-2); border-radius: var(--radius-sm);
+      width: 36px; height: 36px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem; flex-shrink: 0;
+    }
+    .poc-remove:hover { color: var(--danger); border-color: var(--danger); }
+
+    .poc-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .poc-chip {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 0.72rem; background: var(--surface-2); color: var(--text-2);
+      border: 1px solid var(--border);
+    }
+
+    .source-pill {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 0.68rem; font-weight: 600; letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .source-pill.self   { background: var(--info-bg);    color: var(--info); }
+    .source-pill.manual { background: var(--accent-glow); color: var(--accent); }
+
+    .tier-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px; border-radius: 999px;
+      font-size: 0.78rem; font-weight: 600;
+      background: var(--surface-2); color: var(--text-2);
+      border: 1px solid var(--border);
+    }
+    .tier-pill.tier-bronze   { background: rgba(180,83,9,0.18);    color: #fbbf24; border-color: rgba(180,83,9,0.4); }
+    .tier-pill.tier-silver   { background: rgba(148,163,184,0.20); color: #cbd5e1; border-color: rgba(148,163,184,0.4); }
+    .tier-pill.tier-gold     { background: rgba(245,158,11,0.18);  color: #fcd34d; border-color: rgba(245,158,11,0.4); }
+    .tier-pill.tier-platinum { background: rgba(124,58,237,0.20);  color: #c4b5fd; border-color: rgba(124,58,237,0.4); }
+
+    .status-badge.pending  { background: var(--warning-bg); color: var(--warning); }
+    .status-badge.approved { background: var(--success-bg); color: var(--success); }
+    .status-badge.declined { background: var(--danger-bg);  color: var(--danger); }
+
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    .form-grid .full { grid-column: 1 / -1; }
+
+    .creds-card {
+      background: var(--success-bg); border: 1px solid rgba(16,185,129,0.35);
+      border-radius: var(--radius); padding: 18px; margin-top: 20px;
+    }
+    .creds-card h3 {
+      color: var(--success); font-size: 0.95rem; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .creds-card p { color: var(--text-2); font-size: 0.82rem; margin-bottom: 12px; }
+    .creds-row {
+      display: flex; gap: 8px; align-items: stretch; margin-top: 10px;
+    }
+    .creds-row code {
+      flex: 1; background: var(--surface); padding: 10px 12px;
+      border-radius: var(--radius-sm); border: 1px solid var(--border);
+      color: var(--text); font-family: 'SF Mono', Menlo, monospace;
+      font-size: 0.82rem; word-break: break-all; white-space: pre-wrap;
+    }
+    .copy-btn {
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text-2); border-radius: var(--radius-sm); padding: 6px 12px;
+      font-weight: 600; font-size: 0.78rem; cursor: pointer; white-space: nowrap;
+    }
+    .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 100;
+      padding: 14px 22px; border-radius: var(--radius);
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      box-shadow: var(--shadow); font-size: 0.92rem; font-weight: 500;
+      transform: translateY(20px); opacity: 0; pointer-events: none;
+      transition: all 0.25s;
+      max-width: 420px;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success {
+      background: var(--success); border-color: var(--success); color: #fff;
+    }
+    .toast.error {
+      background: var(--danger); border-color: var(--danger); color: #fff;
+    }
+
+    .badge-count {
+      display: inline-block; min-width: 22px; padding: 1px 8px; margin-left: 6px;
+      background: var(--surface-2); border-radius: 999px;
+      font-size: 0.7rem; font-weight: 700;
+    }
+    .filter-tab.active .badge-count { background: rgba(0,0,0,0.25); color: #fff; }
+
+    .actions-cell { display: flex; gap: 6px; align-items: center; }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 1024px) {
+      .filter-tabs { flex-wrap: wrap; }
+    }
+    @media (max-width: 768px) {
+      .filter-tab { padding: 8px 12px; font-size: 0.8rem; }
+      .creds-row  { flex-direction: column; align-items: stretch; gap: 6px; }
+      .creds-row code { white-space: pre-wrap; }
+      .copy-btn { align-self: flex-start; }
+      .pocs-list .poc-row input { font-size: 0.85rem; padding: 8px 10px; }
+      .actions-cell { flex-wrap: wrap; gap: 4px !important; }
+      .btn-icon { width: 30px; height: 30px; font-size: 0.75rem; }
+      .tier-pill { font-size: 0.68rem; padding: 2px 7px; }
+      .source-pill { font-size: 0.62rem; }
+      .commission-input { width: 60px; font-size: 0.78rem; }
+    }
+    @media (max-width: 480px) {
+      .filter-tabs { gap: 4px; }
+      .filter-tab { font-size: 0.72rem; padding: 6px 10px; }
+      .filter-tab i { margin-right: 4px; }
+      .badge-count { font-size: 0.65rem; min-width: 16px; padding: 0 6px; }
+      .toast { left: 12px; right: 12px; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER (mirrors index.html) -->
+  <header class="header">
+    <div class="header-inner">
+
+      <a class="logo" href="/admin-customers.html" title="Vendor Admin">
+        <img src="/aj-logo.png" alt="AJ" class="logo-aj-img" />
+      </a>
+
+      <nav class="nav">
+        <!-- Other admin modules are temporarily hidden — admin is focused on
+             the loyalty programme. Restore by removing each style="display:none". -->
+        <a class="nav-btn" href="/#dashboard"    style="text-decoration:none;display:none"><i class="fas fa-chart-line"></i> Dashboard</a>
+        <a class="nav-btn" href="/#bookings"     style="text-decoration:none;display:none"><i class="fas fa-calendar-alt"></i> Bookings</a>
+        <a class="nav-btn" href="/#calendar"     style="text-decoration:none;display:none"><i class="fas fa-calendar-week"></i> Availability</a>
+        <a class="nav-btn" href="/#analytics"    style="text-decoration:none;display:none"><i class="fas fa-chart-bar"></i> Analytics</a>
+        <a class="nav-btn" href="/#calculations" style="text-decoration:none;display:none"><i class="fas fa-calculator"></i> Calculations</a>
+        <a class="nav-btn" href="/#payments"     style="text-decoration:none;display:none"><i class="fas fa-rupee-sign"></i> Payments</a>
+        <a class="nav-btn" href="/#team"         style="text-decoration:none;display:none"><i class="fas fa-users"></i> Team</a>
+        <a class="nav-btn" href="/#loyalty"      style="text-decoration:none;display:none"><i class="fas fa-medal"></i> Loyalty</a>
+        <a class="nav-btn active" href="admin-customers.html" style="text-decoration:none">
+          <i class="fas fa-handshake"></i> Vendors
+        </a>
+      </nav>
+
+      <div class="user-menu">
+        <div class="user-avatar" id="userAvatar"><i class="fas fa-user"></i></div>
+        <div class="user-info">
+          <span class="user-name" id="userName">Loading…</span>
+        </div>
+        <button class="nav-btn" onclick="logout()" title="Sign out" style="padding:7px 10px">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="view active">
+      <div class="page-header">
+        <div>
+          <h1>Vendor Admin</h1>
+          <span class="date-badge"><i class="fas fa-handshake"></i> Manage vendor accounts, tiers &amp; commission</span>
+        </div>
+      </div>
+
+      <!-- Tab strip -->
+      <div class="filter-tabs" style="margin-bottom:20px">
+        <button class="filter-tab active" data-tab="approved" onclick="showTab('approved')">
+          <i class="fas fa-users"></i>&nbsp; Vendors <span class="badge-count" id="badgeApproved">0</span>
+        </button>
+        <button class="filter-tab" data-tab="logbiz" onclick="showTab('logbiz')">
+          <i class="fas fa-coins"></i>&nbsp; Log Business Entry
+        </button>
+        <button class="filter-tab" data-tab="payments" onclick="showTab('payments')">
+          <i class="fas fa-money-check-dollar"></i>&nbsp; Commissions Paid
+        </button>
+        <button class="filter-tab" data-tab="manual" onclick="showTab('manual')">
+          <i class="fas fa-user-plus"></i>&nbsp; Create Vendor Login
+        </button>
+      </div>
+      <span id="badgePending" style="display:none">0</span>
+      <span id="badgeDeclined" style="display:none">0</span>
+
+      <!-- PENDING (hidden — self-signup is disabled, but kept so admin-customers.js can still write to it without errors) -->
+      <div id="tab-pending" style="display:none"><div id="pendingBody"></div></div>
+
+      <!-- APPROVED -->
+      <section class="tab-panel" id="tab-approved">
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fas fa-users"></i> Vendors</h2>
+            <span style="color:var(--text-2);font-size:0.82rem">Active vendor accounts with their tier &amp; commission earned</span>
+          </div>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Name &amp; Email</th>
+                  <th>Company</th>
+                  <th>POCs</th>
+                  <th>Tier</th>
+                  <th style="text-align:right">Bookings</th>
+                  <th style="text-align:right">Business <span style="font-weight:400;color:var(--text-3)">(net)</span></th>
+                  <th style="text-align:right">Commission Earned</th>
+                  <th style="text-align:center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="approvedBody">
+                <tr><td colspan="9" class="empty-row">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- DECLINED (hidden — self-signup is disabled) -->
+      <div id="tab-declined" style="display:none"><div id="declinedBody"></div></div>
+
+      <!-- LOG BUSINESS ENTRY -->
+      <section class="tab-panel" id="tab-logbiz" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fas fa-coins"></i> Log Business Entry</h2>
+            <span style="color:var(--text-2);font-size:0.82rem">Net amount excl. GST · Counts toward vendor's loyalty tier</span>
+          </div>
+          <div style="padding:24px">
+            <form id="logBizForm" onsubmit="submitBusinessEntry(event)" novalidate>
+              <div class="admin-form-grid">
+                <div class="form-group full">
+                  <label>Vendor *</label>
+                  <select id="lb-vendor" required onchange="onLogBizVendorChange()">
+                    <option value="">— Select vendor —</option>
+                  </select>
+                </div>
+                <div class="form-group full" id="lb-pocWrap" style="display:none">
+                  <label>Point of Contact <span style="color:var(--text-3);font-weight:400">(optional)</span></label>
+                  <select id="lb-poc">
+                    <option value="">— Select POC —</option>
+                  </select>
+                  <span style="font-size:0.75rem;color:var(--text-3);margin-top:4px">Add or manage POCs from the vendor's edit screen.</span>
+                </div>
+                <div class="form-group">
+                  <label>Event Start Date *</label>
+                  <input type="date" id="lb-date" required onchange="syncEndDateMin()" />
+                </div>
+                <div class="form-group">
+                  <label>Event End Date <span style="color:var(--text-3);font-weight:400">(optional · multi-day)</span></label>
+                  <input type="date" id="lb-endDate" />
+                </div>
+                <div class="form-group full">
+                  <label>Net Business Amount (₹) <span style="color:var(--text-3);font-weight:400">(excl. GST)</span> *</label>
+                  <input type="number" id="lb-amount" min="1" step="100" required oninput="updateLogBizPreview()" />
+                </div>
+                <div class="form-group full">
+                  <label>Direct booking by client?</label>
+                  <select id="lb-direct" onchange="updateLogBizPreview()">
+                    <option value="no">No — counts toward vendor's loyalty &amp; commission</option>
+                    <option value="yes">Yes — direct, no commission &amp; no tier impact</option>
+                  </select>
+                  <span style="font-size:0.75rem;color:var(--text-3);margin-top:4px">If Yes, the entry still shows in the vendor's event log but no commission is paid and tier doesn't move.</span>
+                </div>
+                <div class="form-group full">
+                  <label>Client Name <span style="color:var(--text-3);font-weight:400">(end client of this event)</span></label>
+                  <input type="text" id="lb-clientName" placeholder="e.g. Vikram Malhotra" />
+                </div>
+                <div class="form-group full">
+                  <label>Event / Description</label>
+                  <input type="text" id="lb-description" placeholder="e.g. Vikram &amp; Priya — Sangeet at Taj" />
+                </div>
+              </div>
+
+              <!-- Live tier + commission preview -->
+              <div id="logBizPreview" style="display:none;margin-top:18px;padding:16px 18px;background:linear-gradient(135deg,var(--accent-glow),rgba(124,58,237,0.10));border:1px solid var(--border);border-radius:var(--radius)">
+                <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                  <div style="width:42px;height:42px;border-radius:12px;background:var(--accent-glow);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px"><i class="fas fa-medal"></i></div>
+                  <div style="flex:1;min-width:200px">
+                    <div style="font-weight:700"><span id="lbp-vendorName">—</span></div>
+                    <div style="color:var(--text-2);font-size:0.82rem">
+                      Current tier: <strong id="lbp-tier" style="color:var(--text)">Bronze</strong> ·
+                      Rate: <strong id="lbp-rate" style="color:var(--text)">5%</strong>
+                    </div>
+                  </div>
+                  <div style="text-align:right">
+                    <div style="color:var(--text-2);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Commission this entry</div>
+                    <div style="font-weight:800;color:var(--accent);font-size:1.3rem" id="lbp-commission">₹0</div>
+                  </div>
+                </div>
+                <div id="lbp-uplift" style="display:none;margin-top:12px;padding:10px 14px;background:var(--success-bg);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-sm);color:var(--success);font-size:0.88rem">
+                  <i class="fas fa-rocket"></i> This entry will push them into <strong id="lbp-newTier">—</strong>!
+                </div>
+              </div>
+
+              <div style="margin-top:20px">
+                <button type="submit" class="btn btn-primary" id="logBizSubmit">
+                  <i class="fas fa-save"></i> Log Entry
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- COMMISSIONS PAID -->
+      <section class="tab-panel" id="tab-payments" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fas fa-money-check-dollar"></i> Record Commission Payment</h2>
+            <span style="color:var(--text-2);font-size:0.82rem">Payouts you've made to a vendor</span>
+          </div>
+          <div style="padding:24px">
+            <form id="payForm" onsubmit="submitPayment(event)" novalidate>
+              <div class="admin-form-grid">
+                <div class="form-group full">
+                  <label>Vendor *</label>
+                  <select id="pay-vendor" required onchange="onPayVendorChange()">
+                    <option value="">— Select vendor —</option>
+                  </select>
+                  <span style="font-size:0.75rem;color:var(--text-3);margin-top:4px" id="pay-vendor-hint"></span>
+                </div>
+                <div class="form-group full" id="pay-event-wrap" style="display:none">
+                  <label>Pay For Event</label>
+                  <select id="pay-event" onchange="onPayEventChange()">
+                    <option value="">— All outstanding —</option>
+                  </select>
+                  <span style="font-size:0.75rem;color:var(--text-3);margin-top:4px">Already-paid events are not listed.</span>
+                </div>
+                <div class="form-group">
+                  <label>Amount Paid (₹) *</label>
+                  <input type="number" id="pay-amount" min="1" step="1" required />
+                </div>
+                <div class="form-group">
+                  <label>Mode *</label>
+                  <select id="pay-mode" required>
+                    <option value="">— Select mode —</option>
+                    <option>Bank Transfer</option>
+                    <option>UPI</option>
+                    <option>Cheque</option>
+                    <option>Cash</option>
+                    <option>Razorpay</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Date *</label>
+                  <input type="date" id="pay-date" required />
+                </div>
+                <div class="form-group full">
+                  <label>Notes</label>
+                  <input type="text" id="pay-notes" placeholder="Reference / remark (optional)" />
+                </div>
+                <div class="full" style="margin-top:8px">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Record Payment
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px">
+          <div class="card-header">
+            <h2><i class="fas fa-list"></i> Payment History</h2>
+            <span style="color:var(--text-2);font-size:0.82rem" id="payCount">0 payments</span>
+          </div>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="text-align:left">Date</th>
+                  <th style="text-align:left">Vendor</th>
+                  <th style="text-align:right">Amount</th>
+                  <th style="text-align:left">Mode</th>
+                  <th style="text-align:left">Notes</th>
+                  <th style="text-align:center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="payHistoryBody">
+                <tr><td colspan="6" class="empty-row">No payments recorded yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- MANUAL CREATE -->
+      <section class="tab-panel" id="tab-manual" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fas fa-user-plus"></i> Create Vendor Login</h2>
+            <span style="color:var(--text-2);font-size:0.82rem">Pre-approved · share credentials directly with the vendor</span>
+          </div>
+          <div style="padding:24px">
+            <form id="manualForm" onsubmit="submitManual(event)" novalidate>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Owner Name *</label>
+                  <input id="m-name" type="text" required />
+                </div>
+                <div class="form-group">
+                  <label>Email *</label>
+                  <input id="m-email" type="email" required />
+                </div>
+                <div class="form-group">
+                  <label>Phone</label>
+                  <input id="m-phone" type="tel" />
+                </div>
+                <div class="form-group">
+                  <label>Company / Organisation *</label>
+                  <input id="m-company" type="text" required />
+                </div>
+                <div class="form-group">
+                  <label>Custom Password * <span style="color:var(--text-3);font-weight:400">(min 6 chars · vendor will change on first login)</span></label>
+                  <input id="m-password" type="text" placeholder="Set a temporary password" minlength="6" required />
+                </div>
+                <div class="form-group">
+                  <label>Initial Tier <span style="color:var(--text-3);font-weight:400">(acts as a floor — vendor can climb higher)</span></label>
+                  <select id="m-tier">
+                    <option value="">— Auto (Bronze, earned organically) —</option>
+                    <option value="Bronze">Bronze (5%)</option>
+                    <option value="Silver">Silver (7.5%)</option>
+                    <option value="Gold">Gold (10%)</option>
+                    <option value="Platinum">Platinum (15%)</option>
+                  </select>
+                </div>
+                <div class="form-group full">
+                  <label>Points of Contact <span style="color:var(--text-3);font-weight:400">(full names within this company — for future reference)</span></label>
+                  <div id="m-pocsList" class="pocs-list"></div>
+                  <button type="button" class="btn-ghost" style="margin-top:8px;font-size:0.82rem;padding:6px 12px" onclick="addPocInput()">
+                    <i class="fas fa-plus"></i> Add POC
+                  </button>
+                </div>
+                <input id="m-commission" type="hidden" value="0" />
+                <div class="full" style="margin-top:8px">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i> Create &amp; Generate Login
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <div id="credsCard" class="creds-card" style="display:none">
+              <h3><i class="fas fa-key"></i> Account created — share these credentials</h3>
+              <p>Copy and send via email or WhatsApp. The password will not be shown again.</p>
+              <div class="creds-row">
+                <code id="credsEmail"></code>
+                <button class="copy-btn" onclick="copyCreds('credsEmail')"><i class="fas fa-copy"></i> Copy</button>
+              </div>
+              <div class="creds-row">
+                <code id="credsPassword"></code>
+                <button class="copy-btn" onclick="copyCreds('credsPassword')"><i class="fas fa-copy"></i> Copy</button>
+              </div>
+              <div class="creds-row">
+                <code id="credsLoginUrl"></code>
+                <button class="copy-btn" onclick="copyCreds('credsLoginUrl')"><i class="fas fa-copy"></i> Copy</button>
+              </div>
+              <div class="creds-row">
+                <code id="credsMessage"></code>
+                <button class="copy-btn" onclick="copyCreds('credsMessage')"><i class="fas fa-copy"></i> Copy Message</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- Edit Vendor Modal -->
+  <div class="modal-overlay" id="editVendorModal" onclick="if(event.target.id==='editVendorModal') closeEditVendor()">
+    <div class="modal modal-small">
+      <div class="modal-header">
+        <h2><i class="fas fa-pen"></i> Edit Vendor</h2>
+        <button class="modal-close" onclick="closeEditVendor()" aria-label="Close"><i class="fas fa-times"></i></button>
+      </div>
+      <form id="editVendorForm" onsubmit="submitEditVendor(event)" novalidate>
+        <input type="hidden" id="ev-id" />
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Owner Name</label>
+            <input type="text" id="ev-name" />
+          </div>
+          <div class="form-group">
+            <label>Company / Organisation *</label>
+            <input type="text" id="ev-company" required />
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="ev-phone" />
+          </div>
+          <div class="form-group">
+            <label>Initial Tier <span style="color:var(--text-3);font-weight:400">(floor)</span></label>
+            <select id="ev-tier">
+              <option value="">— Auto (Bronze, earned organically) —</option>
+              <option value="Bronze">Bronze (5%)</option>
+              <option value="Silver">Silver (7.5%)</option>
+              <option value="Gold">Gold (10%)</option>
+              <option value="Platinum">Platinum (15%)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Points of Contact <span style="color:var(--text-3);font-weight:400">(full names)</span></label>
+            <div id="ev-pocsList" class="pocs-list"></div>
+            <button type="button" class="btn-ghost" style="margin-top:8px;font-size:0.82rem;padding:6px 12px" onclick="addEvPocInput()">
+              <i class="fas fa-plus"></i> Add POC
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeEditVendor()">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Reset Vendor Password Modal -->
+  <div class="modal-overlay" id="resetPwdModal" onclick="if(event.target.id==='resetPwdModal') closeResetPassword()">
+    <div class="modal modal-small">
+      <div class="modal-header">
+        <h2><i class="fas fa-key"></i> Reset Vendor Password</h2>
+        <button class="modal-close" onclick="closeResetPassword()" aria-label="Close"><i class="fas fa-times"></i></button>
+      </div>
+      <form id="resetPwdForm" onsubmit="submitResetPassword(event)" novalidate>
+        <input type="hidden" id="rp-id" />
+        <div class="modal-body">
+          <p style="color:var(--text-2);font-size:0.85rem;margin-bottom:14px">
+            Resetting password for <strong id="rp-vendor"></strong>. The vendor will be required
+            to change this password on their next login.
+          </p>
+          <div class="form-group">
+            <label>New Password * <span style="color:var(--text-3);font-weight:400">(min 6 chars)</span></label>
+            <input type="text" id="rp-password" placeholder="Set a temporary password" minlength="6" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeResetPassword()">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-key"></i> Reset &amp; Generate</button>
+        </div>
+      </form>
+      <!-- Credentials shown after reset -->
+      <div id="rp-credsCard" class="creds-card" style="display:none;margin:0 24px 24px">
+        <h3><i class="fas fa-circle-check"></i> Password reset — share these with the vendor</h3>
+        <div class="creds-row">
+          <code id="rp-credsEmail"></code>
+          <button class="copy-btn" onclick="copyText('rp-credsEmail')"><i class="fas fa-copy"></i> Copy</button>
+        </div>
+        <div class="creds-row">
+          <code id="rp-credsPassword"></code>
+          <button class="copy-btn" onclick="copyText('rp-credsPassword')"><i class="fas fa-copy"></i> Copy</button>
+        </div>
+        <div class="creds-row">
+          <code id="rp-credsLoginUrl"></code>
+          <button class="copy-btn" onclick="copyText('rp-credsLoginUrl')"><i class="fas fa-copy"></i> Copy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="admin-customers.js"></script>
+</body>
+</html>

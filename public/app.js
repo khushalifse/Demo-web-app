@@ -46,6 +46,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     const me = await fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json());
     if (!me.loggedIn) { location.href = '/login'; return; }
+    // Admin is currently focused on the loyalty programme — bounce to the
+    // vendor admin page on landing. Hash deep-links (#bookings etc.) still work.
+    if (!location.hash) { location.href = '/admin-customers.html'; return; }
     document.getElementById('userName').textContent = me.user.name;
     if (me.user.picture) {
       document.getElementById('userAvatar').innerHTML =
@@ -66,6 +69,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireToggles();
   loadDashboard();
   loadBookings();
+
+  // Honor deep-links like /#bookings, /#loyalty, /#calendar from external pages.
+  const initialHash = (location.hash || '').replace('#', '');
+  if (initialHash && VALID_VIEWS.includes(initialHash)) showView(initialHash);
 });
 
 /* ─── Logout ────────────────────────────────────────────────────────────── */
@@ -74,19 +81,77 @@ async function logout() {
   location.href = '/login';
 }
 
+/* ─── Change Credentials ────────────────────────────────────────────────── */
+function openCredentialsModal() {
+  // Pre-fill the current name/email so the admin sees what they're changing.
+  const currentName  = document.getElementById('userName').textContent || '';
+  document.getElementById('cred-name').value            = currentName === 'Loading…' ? '' : currentName;
+  document.getElementById('cred-email').value           = '';
+  document.getElementById('cred-newPassword').value     = '';
+  document.getElementById('cred-currentPassword').value = '';
+  document.getElementById('credentials-modal').classList.add('open');
+}
+
+async function submitCredentials(e) {
+  e.preventDefault();
+  const btn = document.getElementById('credSubmitBtn');
+  btn.disabled = true;
+  const payload = {
+    newName:         document.getElementById('cred-name').value.trim(),
+    newEmail:        document.getElementById('cred-email').value.trim(),
+    newPassword:     document.getElementById('cred-newPassword').value,
+    currentPassword: document.getElementById('cred-currentPassword').value,
+  };
+  if (!payload.currentPassword) {
+    showToast('Current password is required.', 'error');
+    btn.disabled = false;
+    return;
+  }
+  try {
+    const res = await fetch('/api/auth/credentials', {
+      method:  'PATCH',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update credentials');
+    document.getElementById('userName').textContent = data.user.name;
+    closeModal('credentials-modal');
+    showToast('Credentials updated successfully.', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 /* ─── Navigation ─────────────────────────────────────────────────────────── */
+const VALID_VIEWS = ['dashboard', 'bookings', 'calendar', 'analytics', 'calculations', 'payments', 'team', 'loyalty'];
+
 function showView(name) {
+  if (!VALID_VIEWS.includes(name)) name = 'dashboard';
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
   const navBtn = document.querySelector(`[data-view="${name}"]`);
   if (navBtn) navBtn.classList.add('active');
+  // Keep URL hash in sync so deep-links from other pages work.
+  if (location.hash !== '#' + name) {
+    history.replaceState(null, '', '#' + name);
+  }
   if (name === 'calendar')  renderCalendar();
   if (name === 'payments')  renderPaymentsView();
   if (name === 'team')      renderTeamView();
   if (name === 'analytics') renderAnalyticsView();
   if (name === 'loyalty')   renderLoyaltyView();
 }
+
+// On hash change (e.g. user pastes /#bookings), switch view.
+window.addEventListener('hashchange', () => {
+  const v = (location.hash || '').replace('#', '');
+  if (VALID_VIEWS.includes(v)) showView(v);
+});
 
 /* ─── Dashboard ──────────────────────────────────────────────────────────── */
 async function loadDashboard() {
@@ -592,6 +657,79 @@ function updateGSTCalc() {
   const pendEl = document.getElementById('gc-pending');
   pendEl.textContent = formatCurrency(pending);
   pendEl.closest('.gst-row').classList.toggle('all-clear', pending === 0);
+
+  // Refresh the vendor commission preview so it tracks add-on changes too.
+  updateVendorCommissionPreview();
+}
+
+/* ─── Vendor (registered customer) selection ─────────────────────────────── */
+let VENDORS_CACHE = [];
+
+async function loadVendorsForBooking() {
+  try {
+    const list = await fetch('/api/admin/customers', { credentials: 'same-origin' }).then(r => r.json());
+    if (!Array.isArray(list)) return;
+    VENDORS_CACHE = list.filter(v => v.status === 'approved');
+    const sel = document.getElementById('f-vendorSelect');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Direct customer (no vendor) —</option>' +
+      VENDORS_CACHE.map(v => {
+        const tierName = (v.tier && v.tier.name) || 'Bronze';
+        const tierRate = (v.tier && v.tier.discountPercent) || 0;
+        return `<option value="${v.id}">${escapeHtmlNav(v.name)} — ${tierName} (${tierRate}% commission)</option>`;
+      }).join('');
+  } catch (err) {
+    console.warn('Could not load vendors:', err.message);
+  }
+}
+
+function escapeHtmlNav(s) {
+  return String(s ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+}
+
+function onVendorSelectChange() {
+  const sel = document.getElementById('f-vendorSelect');
+  const id  = sel.value;
+  const card = document.getElementById('vendor-tier-card');
+  if (!id) {
+    card.style.display = 'none';
+    return;
+  }
+  const v = VENDORS_CACHE.find(x => x.id === id);
+  if (!v) { card.style.display = 'none'; return; }
+
+  // Pre-fill the form with vendor details (admin can override).
+  if (!document.getElementById('f-clientName').value) document.getElementById('f-clientName').value = v.name || '';
+  if (!document.getElementById('f-hostName').value)   document.getElementById('f-hostName').value   = v.name || '';
+  if (!document.getElementById('f-phone').value && v.phone) {
+    // Strip leading + and country code if present
+    document.getElementById('f-phone').value = String(v.phone).replace(/^\+\d+\s*/, '');
+  }
+
+  card.style.display = '';
+  document.getElementById('vt-name').textContent = v.name + (v.companyName ? ' · ' + v.companyName : '');
+  document.getElementById('vt-tier').textContent = (v.tier && v.tier.name) || 'Bronze';
+  document.getElementById('vt-rate').textContent = ((v.tier && v.tier.discountPercent) || 0) + '%';
+  updateVendorCommissionPreview();
+}
+
+// Commission = (base + add-ons) × tier rate. Calculated on net (excl. GST).
+function updateVendorCommissionPreview() {
+  const sel = document.getElementById('f-vendorSelect');
+  if (!sel) return;
+  const v = VENDORS_CACHE.find(x => x.id === sel.value);
+  if (!v) return;
+
+  const base    = parseFloat(document.getElementById('f-totalPrice')?.value)     || 0;
+  const holoAmt = document.getElementById('f-hologram')?.checked     ? (parseFloat(document.getElementById('f-hologramAmount')?.value) || 0) : 0;
+  const dholAmt = document.getElementById('f-dholRequired')?.checked ? (parseFloat(document.getElementById('f-dholAmount')?.value)     || 0) : 0;
+  const ancAmt  = document.getElementById('f-ancillaryActs')?.checked? (parseFloat(document.getElementById('f-ancillaryAmount')?.value)|| 0) : 0;
+  const net     = base + holoAmt + dholAmt + ancAmt;
+
+  const rate    = (v.tier && v.tier.discountPercent) || 0;
+  const commission = Math.round(net * rate / 100);
+  const el = document.getElementById('vt-commission');
+  if (el) el.textContent = formatCurrency(commission);
 }
 
 /* ─── Future-date validation helpers ─────────────────────────────────────── */
@@ -847,6 +985,20 @@ function openModal(id = null) {
     updateGSTCalc();
   }
 
+  // Reset vendor selection + reload list every time the modal opens.
+  const vsel = document.getElementById('f-vendorSelect');
+  if (vsel) vsel.value = '';
+  document.getElementById('vendor-tier-card').style.display = 'none';
+  loadVendorsForBooking().then(() => {
+    if (id) {
+      const b = allBookings.find(x => x.id === id);
+      if (b && b.customerId) {
+        document.getElementById('f-vendorSelect').value = b.customerId;
+        onVendorSelectChange();
+      }
+    }
+  });
+
   if (id) {
     const b = allBookings.find(x => x.id === id);
     if (b) populateForm(b);
@@ -929,6 +1081,7 @@ async function handleFormSubmit(e) {
   }
 
   const payload = {
+    customerId:        document.getElementById('f-vendorSelect').value || null,
     hostName:          document.getElementById('f-hostName').value.trim(),
     clientName:        document.getElementById('f-clientName').value.trim(),
     countryCode:       document.getElementById('f-countryCode').value,

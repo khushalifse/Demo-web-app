@@ -1,65 +1,11 @@
 [
   {
-    "id": "22745ed5-7a66-4768-adb3-c9a81b158e87",
-    "name": "Test DJ",
-    "email": "dj@test.com",
-    "password": "$2b$12$c8oQn0OUqKVhoNH2lVHaJex7XoUyE0JxHS32eZ.TmM86HtLCag22.",
+    "id": "be6f11e4-1616-4aba-be5d-db1952cea361",
+    "name": "Super Admin",
+    "email": "admin@aj.com",
+    "password": "$2b$12$AgSpH7CJW5ApzhviO9Za7.3cd06q0v5mMAhSdiFYn8vqvMWzAs6CG",
     "googleId": null,
     "picture": null,
-    "createdAt": "2026-04-13T09:08:03.277Z"
-  },
-  {
-    "id": "73b8c455-fea3-41b3-8dbe-265c572b0cea",
-    "name": "DJ Admin",
-    "email": "admin@djbookpro.com",
-    "password": "$2b$12$MBCZ.dyMuwP0UQoUKITK0uzkX.Ma3VHXYw7//PnHkgoOMyor619nK",
-    "googleId": null,
-    "picture": null,
-    "createdAt": "2026-04-13T09:08:31.659Z"
-  },
-  {
-    "id": "12e3dbd3-7d7c-41d6-a197-8e73eeb2727a",
-    "name": "Khushali",
-    "email": "khushali@fullstopent.in",
-    "password": "$2b$12$3Uf3SdIWsw1828Oc4hQHr.dzGeQ3sbHVdsefVzBeI3mFCnGH4AHLO",
-    "googleId": null,
-    "picture": null,
-    "createdAt": "2026-04-13T09:17:06.184Z"
-  },
-  {
-    "id": "6b30640d-cc37-4c3f-b78f-af5fc67f1443",
-    "name": "cowilo5746",
-    "email": "cowilo5746@sskaid.com",
-    "password": "$2b$12$DY4WpUrEbZWuXvWopQB2U.VWTPvpQvVDBPdvobC2sVlXCzOY1ji32",
-    "googleId": null,
-    "picture": null,
-    "createdAt": "2026-04-15T06:40:42.823Z"
-  },
-  {
-    "id": "08dfbb0c-7344-4663-b55b-600805659ae0",
-    "name": "donexe5502",
-    "email": "donexe5502@sskaid.com",
-    "password": "$2b$12$h7G3BM1duyTgvoVNNk.ktuPIpqMC33Sz7ewJeNEhGMHqyRcvLunqa",
-    "googleId": null,
-    "picture": null,
-    "createdAt": "2026-04-15T06:58:38.245Z"
-  },
-  {
-    "id": "1ca03e57-62d5-4e01-8349-820d6634976a",
-    "name": "khushali",
-    "email": "lathigrakhushali@gmail.com",
-    "password": "$2b$12$MUwHJaoqjuIAsV/K.BpcOel08dYicWsPrbF8lUwLSjEsRhXWBRj/u",
-    "googleId": null,
-    "picture": null,
-    "createdAt": "2026-04-28T12:52:31.199Z"
-  },
-  {
-    "id": "631505dd-e485-4d32-a712-eff4eff14050",
-    "name": "khushi",
-    "email": "khushali.lathigra@gmail.com",
-    "password": "$2b$12$ji3LYSaGJMQLelYR2JeYFOMYJHrEJUH.1b6AIkIe0g1L7SPy0XC6e",
-    "googleId": null,
-    "picture": null,
-    "createdAt": "2026-04-28T13:09:53.046Z"
+    "createdAt": "2026-05-05T07:11:19.773Z"
   }
 ]

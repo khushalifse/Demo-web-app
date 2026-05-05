@@ -1,3 +1,6 @@
 node_modules/
 .env
 .claude/
+
+# Active session store — contains live login tokens, must not be committed
+data/sessions.json
