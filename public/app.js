@@ -1349,8 +1349,6 @@ function renderCalendar() {
 
   const MONTHS      = 24;
   const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  // 0=Sun is weekend, 5=Fri, 6=Sat
-  const WKND_IDX    = new Set([0, 5, 6]);
 
   let summaryHtml = '<div class="cal-summary">';
   let gridHtml    = '<div class="cal-grid">';
@@ -1365,15 +1363,14 @@ function renderCalendar() {
     const firstDOW     = first.getDay(); // day of week for 1st (0=Sun)
     const monthLabel   = first.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
-    // Count free/booked upcoming weekend days
-    let freeWknds = 0, bookedWknds = 0;
+    // Count free/booked across ALL upcoming days (not just weekends)
+    let freeDays = 0, bookedDays = 0;
     for (let day = 1; day <= daysInMonth; day++) {
       const dateObj = new Date(year, month, day);
       if (dateObj < today) continue;
-      if (!isWeekendDay(dateObj)) continue;
       const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      if (bookedDates.has(ds)) bookedWknds++;
-      else freeWknds++;
+      if (bookedDates.has(ds)) bookedDays++;
+      else freeDays++;
     }
 
     // ── Summary card ──
@@ -1381,20 +1378,19 @@ function renderCalendar() {
       <div class="cal-month-summary">
         <div class="cal-sum-month">${monthLabel}</div>
         <div class="cal-sum-stats">
-          ${freeWknds   ? `<span class="cal-sum-free"><i class="fas fa-check-circle"></i> ${freeWknds} free weekend day${freeWknds !== 1 ? 's' : ''}</span>` : ''}
-          ${bookedWknds ? `<span class="cal-sum-booked"><i class="fas fa-times-circle"></i> ${bookedWknds} booked</span>` : ''}
-          ${!freeWknds && !bookedWknds ? `<span class="cal-sum-none">Past month</span>` : ''}
+          ${freeDays   ? `<span class="cal-sum-free"><i class="fas fa-check-circle"></i> ${freeDays} free day${freeDays !== 1 ? 's' : ''}</span>` : ''}
+          ${bookedDays ? `<span class="cal-sum-booked"><i class="fas fa-times-circle"></i> ${bookedDays} booked</span>` : ''}
+          ${!freeDays && !bookedDays ? `<span class="cal-sum-none">Past month</span>` : ''}
         </div>
       </div>`;
 
-    // ── Day-name header ──
-    const dayNamesHtml = DAY_NAMES.map((n, i) =>
-      `<div class="cal-day-name${WKND_IDX.has(i) ? ' weekend' : ''}">${n}</div>`
+    // ── Day-name header (no weekend accent) ──
+    const dayNamesHtml = DAY_NAMES.map(n =>
+      `<div class="cal-day-name">${n}</div>`
     ).join('');
 
     // ── Day cells ──
     let daysHtml = '';
-    // Filler empties before day 1
     for (let i = 0; i < firstDOW; i++) daysHtml += '<div class="cal-day empty"></div>';
 
     for (let day = 1; day <= daysInMonth; day++) {
@@ -1403,17 +1399,11 @@ function renderCalendar() {
       const isPast   = dateObj < today;
       const isToday  = ds === todayStr;
       const isBooked = bookedDates.has(ds);
-      const isWknd   = isWeekendDay(dateObj);
 
       let cls = 'cal-day';
       if (isPast)   cls += ' past';
-      if (isWknd)   cls += ' weekend';
       if (isToday)  cls += ' today';
-      if (isBooked) {
-        cls += ' booked';
-      } else if (isWknd && !isPast) {
-        cls += ' free';
-      }
+      if (isBooked) cls += ' booked';
 
       // Tooltip for booked days
       let tip = '';
@@ -1437,8 +1427,8 @@ function renderCalendar() {
         <div class="cal-month-header">
           <span class="cal-month-name">${monthLabel}</span>
           <div class="cal-month-badges">
-            ${freeWknds   ? `<span class="cal-badge free">${freeWknds} free</span>` : ''}
-            ${bookedWknds ? `<span class="cal-badge booked">${bookedWknds} booked</span>` : ''}
+            ${freeDays   ? `<span class="cal-badge free">${freeDays} free</span>` : ''}
+            ${bookedDays ? `<span class="cal-badge booked">${bookedDays} booked</span>` : ''}
           </div>
         </div>
         <div class="cal-days-header">${dayNamesHtml}</div>
