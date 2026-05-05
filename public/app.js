@@ -46,9 +46,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     const me = await fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json());
     if (!me.loggedIn) { location.href = '/login'; return; }
-    // Admin is currently focused on the loyalty programme — bounce to the
-    // vendor admin page on landing. Hash deep-links (#bookings etc.) still work.
-    if (!location.hash) { location.href = '/admin-customers.html'; return; }
     document.getElementById('userName').textContent = me.user.name;
     if (me.user.picture) {
       document.getElementById('userAvatar').innerHTML =

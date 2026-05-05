@@ -108,7 +108,7 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Login failed');
-        location.href = '/admin-customers.html';
+        location.href = '/';
       } catch (err) {
         showAlert(err.message, 'error');
         setLoading(btn, false);
