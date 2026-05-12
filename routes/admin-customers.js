@@ -456,7 +456,11 @@ router.post('/:id/business-entry', (req, res) => {
     .filter(b => b.customerId === customer.id && b.bookingStatus !== 'Cancelled' && !b.directByClient)
     .reduce((s, b) => s + effectiveBase(b), 0);
   const projectedBusiness = direct ? business : business + amount;
-  const tier     = deriveTier(projectedBusiness, tiers);
+  // Apply the override as a floor so a vendor with an assigned tier never
+  // earns commission at a lower rate than they're entitled to. Mirrors the
+  // calculation in GET / so the dashboard and the saved entry agree.
+  const computedTier = deriveTier(projectedBusiness, tiers);
+  const tier         = tierWithFloor(computedTier, overrideAtDate(customer, date), tiers) || computedTier;
 
   const entry = {
     id:                 uuidv4(),
