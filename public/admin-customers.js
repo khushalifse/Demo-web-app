@@ -175,7 +175,10 @@ function updateLogBizPreview() {
   const projected = projectTier(v.businessGross, amount, v.tierOverride);
   if (projected.name !== currentTier && amount > 0) {
     upliftBox.style.display = '';
-    upliftBox.innerHTML = '<i class="fas fa-rocket"></i> This entry will push them into <strong id="lbp-newTier">' + projected.name + ' (' + projected.discountPercent + '%)</strong>!';
+    upliftBox.innerHTML =
+      '<i class="fas fa-rocket"></i> Currently <strong>' + currentTier + ' (' + currentRate + '%)</strong>' +
+      ' — will upgrade to <strong id="lbp-newTier">' + projected.name + ' (' + projected.discountPercent + '%)</strong>' +
+      ' after this entry.';
   } else {
     upliftBox.style.display = 'none';
   }
