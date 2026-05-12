@@ -47,6 +47,36 @@ function floorCredit(overrideName, tiers) {
   return ov ? (Number(ov.threshold) || 0) : 0;
 }
 
+// Banded commission: a booking spans the cumulative range [before, before+amount].
+// Each tier band [tier.threshold, nextTier.threshold) is hit for whatever portion
+// of the booking lies inside it, taxed at that tier's rate. Mirrors income-tax
+// brackets — a single booking that crosses a tier boundary is split, not
+// charged at one flat rate. Returns the rupee commission and the per-band
+// breakdown so the dashboard can show "₹25L @ 10% + ₹5L @ 15%".
+function computeBandedCommission(cumulativeBefore, amount, tiers) {
+  const sorted = [...tiers].sort((a, b) => Number(a.threshold) - Number(b.threshold));
+  const cumulativeAfter = cumulativeBefore + amount;
+  let commission = 0;
+  const breakdown = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const t = sorted[i];
+    const bandStart = Number(t.threshold) || 0;
+    const bandEnd   = (i + 1 < sorted.length) ? (Number(sorted[i + 1].threshold) || 0) : Infinity;
+    const overlap   = Math.max(0, Math.min(bandEnd, cumulativeAfter) - Math.max(bandStart, cumulativeBefore));
+    if (overlap > 0) {
+      const seg = Math.round(overlap * (Number(t.discountPercent) || 0) / 100);
+      commission += seg;
+      breakdown.push({
+        tier:       t.name,
+        rate:       Number(t.discountPercent) || 0,
+        amount:     overlap,
+        commission: seg,
+      });
+    }
+  }
+  return { commission, breakdown };
+}
+
 // Find the tier override that was effective on a given date by walking the
 // history (sorted oldest-first). Returns null if no override applied yet.
 // `customer.tierOverride` is the live latest value used for new entries; we
@@ -124,27 +154,34 @@ router.get('/dashboard', (req, res) => {
       })()
     : null;
 
-  // Per-event commission breakdown — historically accurate. Walk the bookings
-  // chronologically (oldest first) and compute each event's tier based on
-  // CUMULATIVE business up to and including that event. This way an event that
-  // crosses a tier threshold is credited at the higher rate, while earlier
-  // events stay at the lower tier they were added under.
+  // Per-event commission — banded. Walk bookings chronologically; each booking
+  // spans the cumulative range [before, before+amount] of effective business.
+  // Whichever tier bands that range crosses, that portion is paid at the
+  // respective tier rate (₹25L of new business at Gold's 10%, ₹5L at Platinum's
+  // 15%, etc.). The vendor's "head start" sits the running counter at the
+  // override's threshold before any real booking is added.
   const nextRate = nextTierConf ? Number(nextTierConf.discountPercent) || 0 : Number(tier.discountPercent) || 0;
   const chronological = [...active].sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate));
 
-  let running = 0;
+  let running = credit; // start at the head-start credit, not 0
   const chrono = chronological.map(b => {
     const total = effectiveBase(b);
     const direct = !!b.directByClient;
+    const before = running;
     if (!direct) running += total;
-    // Use the tier override that was active on this event's date — past
-    // events keep their original tier even if the override has been changed.
-    const overrideOnDate = overrideAtDate(me, b.eventDate);
-    const eventCredit    = floorCredit(overrideOnDate, tiers);
-    const ttat = deriveTier(running + eventCredit, tiers).current
-              || { name: 'Bronze', discountPercent: 5 };
-    const rate = direct ? 0 : (Number(ttat.discountPercent) || 0);
-    const earned          = direct ? 0 : Math.round(total * rate     / 100);
+
+    const { commission: earned, breakdown } = direct
+      ? { commission: 0, breakdown: [] }
+      : computeBandedCommission(before, total, tiers);
+
+    // The tier shown in the table is the highest tier this booking REACHED
+    // (= last band it hit). The "rate" column shows the effective blended rate
+    // — same as commission / amount × 100 — so a Gold→Platinum-crossing event
+    // reads as e.g. 10.83%, not a single tier rate.
+    const reachedTier = direct ? null
+      : (breakdown.length ? breakdown[breakdown.length - 1].tier : 'Bronze');
+    const effectiveRate = (direct || !total) ? 0
+      : Math.round((earned / total) * 10000) / 100; // 2 decimal places
     const wouldEarnAtNext = direct ? 0 : Math.round(total * nextRate / 100);
     return {
       id:               b.id,
@@ -157,9 +194,10 @@ router.get('/dashboard', (req, res) => {
       bookingStatus:    b.bookingStatus,
       directByClient:   direct,
       total,
-      tierAtTime:       direct ? '—' : ttat.name,
-      rate,
+      tierAtTime:       direct ? '—' : reachedTier,
+      rate:             effectiveRate,
       commissionEarned: earned,
+      commissionBreakdown: breakdown, // per-band detail for the "blended" tooltip
       wouldEarnAtNext,
     };
   });

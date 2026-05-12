@@ -73,29 +73,42 @@ function populateLogBizVendorSelect() {
   syncEndDateMin();
 }
 
-// Find the tier a vendor will be on after adding `addAmount` of business.
-// The admin-assigned tierOverride adds a head-start credit equal to that
-// tier's threshold — so Gold-floor (₹25L credit) + ₹30L of real business
-// counts as ₹55L of effective business and graduates to Platinum.
-// Mirrors `floorCredit` on the server.
-function projectTier(currentBusiness, addAmount, tierOverrideName) {
-  // CUSTOMERS list returns each vendor's current tier already; but to project
-  // an upgrade we need the full ladder. Quick inline copy of tiers (matches
-  // server defaults). The server accepts whatever it is — we just preview.
-  const TIERS = [
-    { name: 'Bronze',   threshold: 0,       discountPercent: 5    },
-    { name: 'Silver',   threshold: 1000000, discountPercent: 7.5  },
-    { name: 'Gold',     threshold: 2500000, discountPercent: 10   },
-    { name: 'Platinum', threshold: 5000000, discountPercent: 15   },
-  ];
-  let credit = 0;
-  if (tierOverrideName) {
-    const floor = TIERS.find(t => t.name.toLowerCase() === String(tierOverrideName).toLowerCase());
-    if (floor) credit = floor.threshold;
+// Inline copy of the tier ladder + helpers — kept in sync with the server.
+// Used by the Log Business Entry preview to show banded commission and the
+// "currently X → upgrading to Y" teaser.
+const PREVIEW_TIERS = [
+  { name: 'Bronze',   threshold: 0,       discountPercent: 5    },
+  { name: 'Silver',   threshold: 1000000, discountPercent: 7.5  },
+  { name: 'Gold',     threshold: 2500000, discountPercent: 10   },
+  { name: 'Platinum', threshold: 5000000, discountPercent: 15   },
+];
+function previewFloorCredit(tierOverrideName) {
+  if (!tierOverrideName) return 0;
+  const floor = PREVIEW_TIERS.find(t => t.name.toLowerCase() === String(tierOverrideName).toLowerCase());
+  return floor ? floor.threshold : 0;
+}
+function previewBandedCommission(cumulativeBefore, amount) {
+  const after = cumulativeBefore + amount;
+  let commission = 0;
+  const breakdown = [];
+  for (let i = 0; i < PREVIEW_TIERS.length; i++) {
+    const t = PREVIEW_TIERS[i];
+    const bandStart = t.threshold;
+    const bandEnd   = (i + 1 < PREVIEW_TIERS.length) ? PREVIEW_TIERS[i + 1].threshold : Infinity;
+    const overlap = Math.max(0, Math.min(bandEnd, after) - Math.max(bandStart, cumulativeBefore));
+    if (overlap > 0) {
+      const seg = Math.round(overlap * t.discountPercent / 100);
+      commission += seg;
+      breakdown.push({ tier: t.name, rate: t.discountPercent, amount: overlap, commission: seg });
+    }
   }
-  const effective = (Number(currentBusiness) || 0) + (Number(addAmount) || 0) + credit;
-  let projected = TIERS[0];
-  for (const t of TIERS) if (effective >= t.threshold) projected = t;
+  return { commission, breakdown };
+}
+// Find the tier a vendor will be on after adding `addAmount` of business.
+function projectTier(currentBusiness, addAmount, tierOverrideName) {
+  const effective = (Number(currentBusiness) || 0) + (Number(addAmount) || 0) + previewFloorCredit(tierOverrideName);
+  let projected = PREVIEW_TIERS[0];
+  for (const t of PREVIEW_TIERS) if (effective >= t.threshold) projected = t;
   return projected;
 }
 
@@ -155,8 +168,25 @@ function updateLogBizPreview() {
   document.getElementById('lbp-tier').textContent = currentTier;
   document.getElementById('lbp-rate').textContent = direct ? '0% (direct)' : currentRate + '%';
 
-  const commission = direct ? 0 : Math.round(amount * currentRate / 100);
-  document.getElementById('lbp-commission').textContent = fmtINR(commission);
+  // Banded commission preview: walk the booking through whatever tier bands
+  // it crosses, summing each overlap × that band's rate.
+  const cumulativeBefore = (Number(v.businessGross) || 0) + previewFloorCredit(v.tierOverride);
+  const banded = direct
+    ? { commission: 0, breakdown: [] }
+    : previewBandedCommission(cumulativeBefore, amount);
+  document.getElementById('lbp-commission').textContent = fmtINR(banded.commission);
+
+  // Show the per-band breakdown only when the booking actually crosses a
+  // boundary (otherwise it's just "₹30L @ 10%" — same info as the row above).
+  const bdEl = document.getElementById('lbp-breakdown');
+  if (!direct && banded.breakdown.length > 1 && amount > 0) {
+    bdEl.style.display = '';
+    bdEl.textContent = banded.breakdown
+      .map(seg => `${fmtINR(seg.amount)} @ ${seg.rate}%`)
+      .join('  +  ') + `  =  ${fmtINR(banded.commission)}`;
+  } else {
+    bdEl.style.display = 'none';
+  }
 
   const upliftBox = document.getElementById('lbp-uplift');
   if (direct) {

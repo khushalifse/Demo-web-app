@@ -46,6 +46,35 @@ function floorCredit(overrideName, tiers) {
   return ov ? (Number(ov.threshold) || 0) : 0;
 }
 
+// Banded commission — same idea as income-tax brackets. Each booking spans
+// [cumulativeBefore, cumulativeBefore + amount] of effective business; whatever
+// portion falls inside a tier band gets that tier's rate. A Gold-credit vendor
+// logging their first ₹30L booking gets ₹25L @ 10% + ₹5L @ 15%, not the full
+// ₹30L at the highest tier reached.
+function computeBandedCommission(cumulativeBefore, amount, tiers) {
+  const sorted = [...tiers].sort((a, b) => Number(a.threshold) - Number(b.threshold));
+  const cumulativeAfter = cumulativeBefore + amount;
+  let commission = 0;
+  const breakdown = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const t = sorted[i];
+    const bandStart = Number(t.threshold) || 0;
+    const bandEnd   = (i + 1 < sorted.length) ? (Number(sorted[i + 1].threshold) || 0) : Infinity;
+    const overlap   = Math.max(0, Math.min(bandEnd, cumulativeAfter) - Math.max(bandStart, cumulativeBefore));
+    if (overlap > 0) {
+      const seg = Math.round(overlap * (Number(t.discountPercent) || 0) / 100);
+      commission += seg;
+      breakdown.push({
+        tier:       t.name,
+        rate:       Number(t.discountPercent) || 0,
+        amount:     overlap,
+        commission: seg,
+      });
+    }
+  }
+  return { commission, breakdown };
+}
+
 // Tier override that was effective on a given date (walks history oldest-first).
 function overrideAtDate(customer, dateISO) {
   if (!Array.isArray(customer.tierOverrideHistory) || !customer.tierOverrideHistory.length) {
@@ -80,19 +109,20 @@ router.get('/', (req, res) => {
   const tiers     = store.readTiers();
 
   // Mirror customer.js: walk events oldest-first, computing each event's
-  // tier-at-time from (cumulative real business + floor credit). The credit
-  // is the threshold of whichever override was effective on the event's date.
+  // commission BANDED across the tier ladder. Running counter starts at the
+  // head-start credit so the first booking already begins inside whatever
+  // band the override placed them on.
   function commissionEarnedFor(c) {
     const mine = bookings
       .filter(b => b.customerId === c.id && b.bookingStatus !== 'Cancelled' && !b.directByClient)
       .sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate));
-    let running = 0, total = 0;
+    const credit = floorCredit(c.tierOverride, tiers);
+    let running = credit, total = 0;
     for (const b of mine) {
       const amt = effectiveBase(b);
+      const before = running;
       running += amt;
-      const credit = floorCredit(overrideAtDate(c, b.eventDate), tiers);
-      const eff    = deriveTier(running + credit, tiers) || { discountPercent: 5 };
-      total += Math.round(amt * (Number(eff.discountPercent) || 0) / 100);
+      total += computeBandedCommission(before, amt, tiers).commission;
     }
     return total;
   }
@@ -479,11 +509,20 @@ router.post('/:id/business-entry', (req, res) => {
     .filter(b => b.customerId === customer.id && b.bookingStatus !== 'Cancelled' && !b.directByClient)
     .reduce((s, b) => s + effectiveBase(b), 0);
   const projectedBusiness = direct ? business : business + amount;
-  // Override acts as a head-start credit added to the projected real business,
-  // then the tier is derived from the combined effective total. Mirrors the
-  // calculation in GET / so the dashboard and the saved entry agree.
-  const credit = floorCredit(overrideAtDate(customer, date), tiers);
-  const tier   = deriveTier(projectedBusiness + credit, tiers);
+  // Commission for this entry is BANDED — the booking spans the cumulative
+  // range [business + credit, business + credit + amount] of effective business,
+  // and each tier band it crosses pays at its own rate.
+  const credit       = floorCredit(overrideAtDate(customer, date), tiers);
+  const bandResult   = direct
+    ? { commission: 0, breakdown: [] }
+    : computeBandedCommission(business + credit, amount, tiers);
+  const bandedAmount = bandResult.commission;
+  const effectiveRate = (direct || !amount) ? 0
+    : Math.round((bandedAmount / amount) * 10000) / 100; // blended % for display
+  // "tier" shown elsewhere is the highest tier this booking reached.
+  const reachedTierName = direct ? 'Bronze'
+    : (bandResult.breakdown.length ? bandResult.breakdown[bandResult.breakdown.length - 1].tier : 'Bronze');
+  const tier = { name: reachedTierName, discountPercent: effectiveRate };
 
   const entry = {
     id:                 uuidv4(),
@@ -516,8 +555,8 @@ router.post('/:id/business-entry', (req, res) => {
     isAjsShow:          true,
     fullPrice:          amount,
     directByClient:     direct,         // bypasses commission + tier counting
-    discountPercent:    direct ? 0 : (Number(tier.discountPercent) || 0),
-    discountAmount:     direct ? 0 : Math.round(amount * (Number(tier.discountPercent) || 0) / 100),
+    discountPercent:    direct ? 0 : effectiveRate,
+    discountAmount:     direct ? 0 : bandedAmount,
     reversalStatus:     'NotEligible',
     reversalAmount:     0,
     reversalDate:       null,
@@ -537,7 +576,8 @@ router.post('/:id/business-entry', (req, res) => {
     entry,
     newTier:   { name: tier.name, discountPercent: tier.discountPercent },
     newBusiness: projectedBusiness,
-    commissionFromThisEntry: direct ? 0 : Math.round(amount * (Number(tier.discountPercent) || 0) / 100),
+    commissionFromThisEntry: bandedAmount,
+    commissionBreakdown:     bandResult.breakdown,
     directByClient: direct,
   });
 });
@@ -610,22 +650,26 @@ router.patch('/:vendorId/business-entry/:bookingId', (req, res) => {
   if (poc !== undefined)  b.poc          = poc ? String(poc).trim() : null;
   b.updatedAt = new Date().toISOString();
 
-  // Recompute tier-at-time using the floored logic, then refresh the saved
-  // discount fields so exports / raw reads stay consistent with the dashboard.
+  // Recompute this entry's commission with banded math. The booking spans
+  // the cumulative range [running_before, running_before + amount] of
+  // effective business; sum each band-overlap × that band's rate.
   const tiers = store.readTiers();
   const chrono = bookings
     .filter(x => x.customerId === customer.id && x.bookingStatus !== 'Cancelled' && !x.directByClient)
     .sort((x, y) => new Date(x.eventDate) - new Date(y.eventDate));
-  let running = 0;
+  const credit = floorCredit(overrideAtDate(customer, b.eventDate), tiers);
+  let runningBefore = credit;
   for (const x of chrono) {
-    running += effectiveBase(x);
     if (x.id === b.id) break;
+    runningBefore += effectiveBase(x);
   }
-  const credit   = floorCredit(overrideAtDate(customer, b.eventDate), tiers);
-  const eff      = deriveTier(running + credit, tiers);
-  const rate     = b.directByClient ? 0 : (Number(eff.discountPercent) || 0);
-  b.discountPercent = rate;
-  b.discountAmount  = b.directByClient ? 0 : Math.round((Number(b.totalPrice) || 0) * rate / 100);
+  const amount = Number(b.totalPrice) || 0;
+  const { commission: bandedAmount } = b.directByClient
+    ? { commission: 0 }
+    : computeBandedCommission(runningBefore, amount, tiers);
+  b.discountAmount  = b.directByClient ? 0 : bandedAmount;
+  b.discountPercent = (b.directByClient || !amount) ? 0
+    : Math.round((bandedAmount / amount) * 10000) / 100;
 
   bookings[idx] = b;
   fs.writeFileSync(BOOKINGS_PATH, JSON.stringify(bookings, null, 2), 'utf8');
@@ -658,24 +702,27 @@ router.get('/:id/unpaid-events', (req, res) => {
     .filter(b => b.customerId === customer.id && b.bookingStatus !== 'Cancelled' && !b.directByClient)
     .sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate));
 
-  // Compute commission earned per event using historical tier-at-time + the
-  // head-start credit from whichever override was effective on each event's date.
-  let running = 0;
+  // Per-event commission is banded — running counter starts at the credit
+  // so the first booking already begins inside whatever band the override placed
+  // the vendor on. Each band overlap pays at its own rate.
+  const credit = floorCredit(customer.tierOverride, tiers);
+  let running = credit;
   const events = mine.map(b => {
     const total = effectiveBase(b);
+    const before = running;
     running += total;
-    const credit = floorCredit(overrideAtDate(customer, b.eventDate), tiers);
-    const eff    = deriveTier(running + credit, tiers) || { discountPercent: 5 };
-    const rate   = Number(eff.discountPercent) || 0;
+    const { commission, breakdown } = computeBandedCommission(before, total, tiers);
+    const reachedTier = breakdown.length ? breakdown[breakdown.length - 1].tier : 'Bronze';
+    const rate = total ? Math.round((commission / total) * 10000) / 100 : 0;
     return {
       id:               b.id,
       eventDate:        b.eventDate,
       eventDateTo:      b.eventDateTo || null,
       eventType:        b.eventType,
       clientName:       b.clientName || '',
-      tierAtTime:       eff.name,
+      tierAtTime:       reachedTier,
       rate,
-      commissionEarned: Math.round(total * rate / 100),
+      commissionEarned: commission,
     };
   });
 

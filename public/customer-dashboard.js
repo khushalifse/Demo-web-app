@@ -255,7 +255,15 @@ function renderEvents(events) {
     const tierCell = e.directByClient
       ? '<span class="status-badge" style="background:rgba(148,163,184,0.18);color:var(--text-2)">Direct</span>'
       : `<span class="tier-pill tier-${tierCls}"><i class="fas fa-medal"></i> ${tierName}</span>`;
-    const rateCell = e.directByClient ? '—' : (e.rate + '%');
+    // When the booking spans multiple tier bands, show the blended rate +
+    // a hover tooltip listing each band. Single-band stays plain like "15%".
+    const bd = Array.isArray(e.commissionBreakdown) ? e.commissionBreakdown : [];
+    const rateText = e.directByClient
+      ? '—'
+      : (Number.isInteger(e.rate) ? e.rate + '%' : e.rate.toFixed(2) + '%');
+    const rateCell = (!e.directByClient && bd.length > 1)
+      ? `<span title="${bd.map(s => `${fmtINR(s.amount)} @ ${s.rate}%`).join(' + ')}" style="border-bottom:1px dashed var(--text-3);cursor:help">${rateText}<span style="color:var(--text-3);font-size:0.72rem;margin-left:4px">blended</span></span>`
+      : rateText;
     const commissionCell = e.directByClient
       ? '<span style="color:var(--text-3)">₹0</span>'
       : `<span style="color:var(--accent);font-weight:700">${fmtINR(e.commissionEarned)}</span>`;
