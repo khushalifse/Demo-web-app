@@ -214,9 +214,18 @@
       <!-- APPROVED -->
       <section class="tab-panel" id="tab-approved">
         <div class="card">
-          <div class="card-header">
-            <h2><i class="fas fa-users"></i> Vendors</h2>
-            <span style="color:var(--text-2);font-size:0.82rem">Active vendor accounts with their tier &amp; commission earned</span>
+          <div class="card-header" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <h2 style="margin:0"><i class="fas fa-users"></i> Vendors</h2>
+            <span style="color:var(--text-2);font-size:0.82rem;flex:1">Active vendor accounts with their tier &amp; commission earned</span>
+            <div style="display:flex;gap:8px">
+              <button type="button" class="btn btn-ghost" style="padding:8px 14px;font-size:0.82rem" onclick="exportVendors()">
+                <i class="fas fa-file-export"></i> Export
+              </button>
+              <button type="button" class="btn btn-ghost" style="padding:8px 14px;font-size:0.82rem" onclick="document.getElementById('importVendorsFile').click()">
+                <i class="fas fa-file-import"></i> Import
+              </button>
+              <input type="file" id="importVendorsFile" accept="application/json,.json" style="display:none" onchange="importVendors(event)" />
+            </div>
           </div>
           <div class="table-wrapper">
             <table class="table">
@@ -586,6 +595,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="admin-customers.js?v=20260512a"></script>
+  <script src="admin-customers.js?v=20260512b"></script>
 </body>
 </html>

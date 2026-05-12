@@ -131,6 +131,54 @@ router.get('/', (req, res) => {
   res.json(decorated);
 });
 
+// GET /api/admin/customers/export — full backup of customers.json as a
+// downloadable file. Hashed passwords are included so a round-trip import
+// preserves working logins. Treat the file as sensitive.
+router.get('/export', (req, res) => {
+  const customers = readCustomers();
+  const stamp = new Date().toISOString().split('T')[0];
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="vendors-export-${stamp}.json"`);
+  res.send(JSON.stringify(customers, null, 2));
+});
+
+// POST /api/admin/customers/import — accepts { vendors: [...] } and adds any
+// rows whose email isn't already in the system. Existing accounts are kept as
+// they are (non-destructive). Reports imported / skipped counts.
+router.post('/import', (req, res) => {
+  const incoming = (req.body && Array.isArray(req.body.vendors)) ? req.body.vendors : null;
+  if (!incoming) return res.status(400).json({ error: 'Expected { vendors: [ ... ] }.' });
+  if (incoming.length > 1000) return res.status(413).json({ error: 'Too many rows (max 1000).' });
+
+  const customers = readCustomers();
+  const existingEmails = new Set(customers.map(c => (c.email || '').toLowerCase()));
+  const existingIds    = new Set(customers.map(c => c.id));
+
+  let imported = 0, skipped = 0, invalid = 0;
+  for (const v of incoming) {
+    if (!v || typeof v !== 'object' || !v.email || !v.password || !v.id) { invalid++; continue; }
+    const emailKey = String(v.email).toLowerCase();
+    if (existingEmails.has(emailKey) || existingIds.has(v.id)) { skipped++; continue; }
+    customers.push({
+      ...v,
+      email:              emailKey,
+      status:             v.status || 'approved',
+      source:             v.source || 'import',
+      role:               'customer',
+      commissionPercent:  Number(v.commissionPercent) || 0,
+      tierOverrideHistory: Array.isArray(v.tierOverrideHistory) ? v.tierOverrideHistory : [],
+      pocs:               Array.isArray(v.pocs) ? v.pocs : [],
+      mustChangePassword: !!v.mustChangePassword,
+      createdAt:          v.createdAt || new Date().toISOString(),
+    });
+    existingEmails.add(emailKey);
+    existingIds.add(v.id);
+    imported++;
+  }
+  if (imported > 0) writeCustomers(customers);
+  res.json({ success: true, imported, skipped, invalid });
+});
+
 // PATCH /api/admin/customers/:id/approve
 router.patch('/:id/approve', (req, res) => {
   const customers = readCustomers();

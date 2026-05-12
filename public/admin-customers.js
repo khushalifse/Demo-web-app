@@ -544,6 +544,56 @@ async function deleteCustomer(id) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
+function exportVendors() {
+  // Trigger a browser download by navigating to the export endpoint. Same-origin
+  // request keeps the session cookie attached so requireAuth is satisfied.
+  const a = document.createElement('a');
+  a.href = '/api/admin/customers/export';
+  a.rel  = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  showToast('Export started — check your downloads.', 'success');
+}
+
+async function importVendors(ev) {
+  const input = ev.target;
+  const file  = input.files && input.files[0];
+  input.value = ''; // allow re-uploading the same filename later
+  if (!file) return;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch {
+    showToast('That file is not valid JSON.', 'error');
+    return;
+  }
+  // Accept either a bare array (export format) or { vendors: [...] }.
+  const vendors = Array.isArray(parsed) ? parsed
+                : (parsed && Array.isArray(parsed.vendors)) ? parsed.vendors
+                : null;
+  if (!vendors) {
+    showToast('Expected an array of vendors (the export format).', 'error');
+    return;
+  }
+  if (!confirm(`Import ${vendors.length} vendor record(s)? Existing accounts (matched by email) will be kept as-is.`)) return;
+
+  try {
+    const res = await api('/api/admin/customers/import', {
+      method: 'POST',
+      body: JSON.stringify({ vendors }),
+    });
+    const parts = [`${res.imported} imported`];
+    if (res.skipped) parts.push(`${res.skipped} skipped (already exist)`);
+    if (res.invalid) parts.push(`${res.invalid} invalid`);
+    showToast(parts.join(' · '), 'success');
+    await load();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
 async function updateCommission(id, value) {
   const pct = Number(value);
   if (Number.isNaN(pct) || pct < 0 || pct > 100) {
