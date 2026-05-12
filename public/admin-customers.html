@@ -616,6 +616,23 @@
     </div>
   </div>
 
+  <!-- Reusable Confirm Modal — replaces native confirm() for nicer UX. -->
+  <div class="modal-overlay" id="confirmModal" onclick="if(event.target.id==='confirmModal') resolveConfirm(false)">
+    <div class="modal modal-small">
+      <div class="modal-header">
+        <h2 id="confirm-title"><i class="fas fa-circle-question"></i> Are you sure?</h2>
+        <button class="modal-close" onclick="resolveConfirm(false)" aria-label="Close"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message" style="color:var(--text-2);font-size:0.9rem;line-height:1.5;margin:0"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="resolveConfirm(false)" id="confirm-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="resolveConfirm(true)" id="confirm-ok">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Edit Business Entry Modal -->
   <div class="modal-overlay" id="editEntryModal" onclick="if(event.target.id==='editEntryModal') closeEditEntry()">
     <div class="modal modal-small">
@@ -666,6 +683,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="admin-customers.js?v=20260512j"></script>
+  <script src="admin-customers.js?v=20260512k"></script>
 </body>
 </html>

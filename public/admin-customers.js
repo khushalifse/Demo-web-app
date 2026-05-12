@@ -405,7 +405,13 @@ async function submitPayment(e) {
 }
 
 async function deletePayment(id) {
-  if (!confirm('Delete this payment record?')) return;
+  const ok = await customConfirm({
+    title: 'Delete payment record?',
+    message: "This will remove the commission payment from the vendor's history.",
+    confirmText: 'Delete',
+    danger: true,
+  });
+  if (!ok) return;
   try {
     await api(`/api/admin/customers/commission-payments/${id}`, { method: 'DELETE' });
     showToast('Payment removed.', 'success');
@@ -543,7 +549,13 @@ async function approveCustomer(id) {
 }
 
 async function declineCustomer(id) {
-  if (!confirm('Decline this registration?')) return;
+  const ok = await customConfirm({
+    title: 'Decline this registration?',
+    message: "The vendor will not be able to log in. You can re-approve them later.",
+    confirmText: 'Decline',
+    danger: true,
+  });
+  if (!ok) return;
   try {
     await api(`/api/admin/customers/${id}/decline`, { method: 'PATCH' });
     showToast('Registration declined.', 'success');
@@ -552,7 +564,13 @@ async function declineCustomer(id) {
 }
 
 async function deleteCustomer(id) {
-  if (!confirm('Delete this vendor account? Their commission-payment history will be wiped. Bookings are kept.')) return;
+  const ok = await customConfirm({
+    title: 'Delete vendor account?',
+    message: "Their commission-payment history will be wiped. Bookings are kept.",
+    confirmText: 'Delete vendor',
+    danger: true,
+  });
+  if (!ok) return;
   try {
     const res = await api(`/api/admin/customers/${id}`, { method: 'DELETE' });
     const removed = res && res.removedPayments ? ` · ${res.removedPayments} payment record(s) removed` : '';
@@ -571,6 +589,32 @@ const EXCEL_COLUMNS = [
   'Password (new vendors only)', 'Initial Tier',
   'POCs (semicolon-separated)', 'Status', 'Commission %', 'Created',
 ];
+
+/* ─── Reusable confirm modal (replaces native window.confirm) ─────────── */
+let _confirmResolver = null;
+
+function customConfirm({ title, message, confirmText, cancelText, danger } = {}) {
+  return new Promise((resolve) => {
+    _confirmResolver = resolve;
+    document.getElementById('confirm-title').innerHTML =
+      (danger ? '<i class="fas fa-triangle-exclamation" style="color:var(--danger)"></i> '
+              : '<i class="fas fa-circle-question"></i> ') +
+      (title || 'Are you sure?');
+    document.getElementById('confirm-message').textContent = message || '';
+    const okBtn = document.getElementById('confirm-ok');
+    okBtn.textContent = confirmText || 'Confirm';
+    okBtn.className   = 'btn ' + (danger ? 'btn-danger' : 'btn-primary');
+    document.getElementById('confirm-cancel').textContent = cancelText || 'Cancel';
+    document.getElementById('confirmModal').classList.add('open');
+  });
+}
+
+function resolveConfirm(answer) {
+  document.getElementById('confirmModal').classList.remove('open');
+  const fn = _confirmResolver;
+  _confirmResolver = null;
+  if (fn) fn(answer);
+}
 
 /* ─── Business Entries (inline expandable row under each vendor) ──────── */
 let EXPANDED_VENDOR_ID = null;
@@ -691,7 +735,13 @@ async function submitEditEntry(ev) {
 }
 
 async function deleteBusinessEntry(vendorId, bookingId) {
-  if (!confirm('Delete this business entry? This will recompute the vendor\'s tier and commission.')) return;
+  const ok = await customConfirm({
+    title: 'Delete business entry?',
+    message: "This will permanently remove the entry and recompute the vendor's tier and commission.",
+    confirmText: 'Delete',
+    danger: true,
+  });
+  if (!ok) return;
   try {
     await api(`/api/admin/customers/${vendorId}/business-entry/${bookingId}`, { method: 'DELETE' });
     showToast('Entry deleted.', 'success');
@@ -767,7 +817,12 @@ async function importVendorsExcel(ev) {
     };
   });
 
-  if (!confirm(`Import ${rows.length} row(s)? New vendors will be created; existing emails are skipped.`)) return;
+  const ok = await customConfirm({
+    title: `Import ${rows.length} vendor row(s)?`,
+    message: "New vendors will be created. Rows whose email already exists in the system will be skipped.",
+    confirmText: 'Import',
+  });
+  if (!ok) return;
 
   try {
     const res = await api('/api/admin/customers/bulk-create', {
