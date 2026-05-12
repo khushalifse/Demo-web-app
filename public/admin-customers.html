@@ -55,6 +55,18 @@
     }
     .link-amount:hover { border-bottom-color: var(--accent); color: var(--accent); }
 
+    /* Inline expandable "entries" row sits directly under the vendor row. */
+    .row-expanded > td { border-bottom: none; }
+    .entries-row > .entries-cell { background: var(--surface-2); padding: 0; }
+    .entries-wrap { padding: 14px 20px 18px; border-bottom: 1px solid var(--border-2); }
+    .entries-title {
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--text-2); margin-bottom: 8px;
+    }
+    .entries-wrap .table-inner { background: var(--surface); border-radius: var(--radius-sm); margin: 0; }
+    .entries-wrap .table-inner th { font-size: 0.7rem; padding: 8px 12px; }
+    .entries-wrap .table-inner td { padding: 8px 12px; font-size: 0.85rem; }
+
     .tier-pill {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 3px 10px; border-radius: 999px;
@@ -604,39 +616,7 @@
     </div>
   </div>
 
-  <!-- Business Entries Modal -->
-  <div class="modal-overlay" id="bizEntriesModal" onclick="if(event.target.id==='bizEntriesModal') closeBizEntries()">
-    <div class="modal" style="max-width:780px">
-      <div class="modal-header">
-        <h2><i class="fas fa-list"></i> Business Entries — <span id="be-vendorName">—</span></h2>
-        <button class="modal-close" onclick="closeBizEntries()" aria-label="Close"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal-body">
-        <p style="color:var(--text-2);font-size:0.82rem;margin:0 0 12px">
-          Edits recompute the entry's tier and commission with the override floor applied.
-        </p>
-        <div class="table-wrapper">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Client / Description</th>
-                <th>Direct?</th>
-                <th style="text-align:right">Amount (₹)</th>
-                <th style="text-align:center">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="be-rows"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost" onclick="closeBizEntries()">Close</button>
-      </div>
-    </div>
-  </div>
-
   <div id="toast" class="toast"></div>
-  <script src="admin-customers.js?v=20260512f"></script>
+  <script src="admin-customers.js?v=20260512g"></script>
 </body>
 </html>

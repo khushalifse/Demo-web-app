@@ -465,8 +465,12 @@ function render() {
         const mustChange = c.mustChangePassword
           ? '<span class="status-badge" style="background:var(--warning-bg);color:var(--warning);font-size:0.65rem;margin-left:6px" title="Vendor has not yet changed their initial password"><i class="fas fa-hourglass-half"></i> pending change</span>'
           : '';
+        const isExpanded = EXPANDED_VENDOR_ID === c.id;
+        const caret = isExpanded ? '<i class="fas fa-chevron-up" style="font-size:0.65rem;margin-left:4px"></i>'
+                                 : '<i class="fas fa-chevron-down" style="font-size:0.65rem;margin-left:4px"></i>';
+        const detailRow = isExpanded ? entriesRowHTML(c.id) : '';
         return `
-          <tr>
+          <tr${isExpanded ? ' class="row-expanded"' : ''}>
             <td data-label="Name & Email">
               <div class="client-name">${escapeHtml(c.name)} ${pwdBadge}${mustChange}</div>
               <div style="font-size:0.78rem;color:var(--text-2);margin-top:2px">${escapeHtml(c.email)}</div>
@@ -476,7 +480,7 @@ function render() {
             <td data-label="Tier"><span class="tier-pill tier-${tierCls}"><i class="fas fa-medal"></i> ${tierName} <span style="opacity:0.75">(${tierRate}%)</span></span>${overrideHint}</td>
             <td data-label="Bookings" style="text-align:right">
               <button type="button" class="link-amount" title="View / edit entries" onclick="openBusinessEntries('${c.id}')">
-                ${c.bookingsCount || 0}
+                ${c.bookingsCount || 0}${caret}
               </button>
             </td>
             <td data-label="Business (net)" style="text-align:right">
@@ -498,7 +502,7 @@ function render() {
                 </button>
               </div>
             </td>
-          </tr>`;
+          </tr>${detailRow}`;
       }).join('')
     : `<tr><td colspan="8" class="empty-row">No vendors yet.</td></tr>`;
 
@@ -568,68 +572,85 @@ const EXCEL_COLUMNS = [
   'POCs (semicolon-separated)', 'Status', 'Commission %', 'Created',
 ];
 
-/* ─── Business Entries modal (per-vendor list with edit/delete) ────────── */
-let BIZ_MODAL_VENDOR_ID = null;
+/* ─── Business Entries (inline expandable row under each vendor) ──────── */
+let EXPANDED_VENDOR_ID = null;
+const ENTRIES_CACHE = {}; // vendorId → array | null (null = loading)
 
 async function openBusinessEntries(vendorId) {
-  const v = CUSTOMERS.find(c => c.id === vendorId);
-  if (!v) { showToast('Vendor not found.', 'error'); return; }
-  BIZ_MODAL_VENDOR_ID = vendorId;
-  document.getElementById('be-vendorName').textContent =
-    v.name + (v.companyName ? ' · ' + v.companyName : '');
-  document.getElementById('be-rows').innerHTML = `<tr><td colspan="5" class="empty-row">Loading…</td></tr>`;
-  document.getElementById('bizEntriesModal').classList.add('open');
-  await renderBusinessEntries();
-}
-
-function closeBizEntries() {
-  document.getElementById('bizEntriesModal').classList.remove('open');
-  BIZ_MODAL_VENDOR_ID = null;
-}
-
-async function renderBusinessEntries() {
-  const vendorId = BIZ_MODAL_VENDOR_ID;
-  if (!vendorId) return;
-  const tbody = document.getElementById('be-rows');
+  // Toggle: click the same vendor's link again to collapse.
+  if (EXPANDED_VENDOR_ID === vendorId) {
+    EXPANDED_VENDOR_ID = null;
+    render();
+    return;
+  }
+  EXPANDED_VENDOR_ID = vendorId;
+  ENTRIES_CACHE[vendorId] = null; // show "Loading…" while we fetch
+  render();
   try {
-    const list = await api(`/api/admin/customers/${vendorId}/business-entries`);
-    if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="5" class="empty-row">No entries logged yet.</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = list.map(e => {
-      const dateLabel = formatPayDate(e.eventDate) + (e.eventDateTo ? ' → ' + formatPayDate(e.eventDateTo) : '');
-      const directBadge = e.directByClient
-        ? '<span class="source-pill self">Direct</span>'
-        : '<span style="color:var(--text-3)">—</span>';
-      const desc = (e.eventType || '') + (e.clientName ? ' · ' + e.clientName : '');
-      return `
-        <tr>
-          <td>${escapeHtml(dateLabel)}</td>
-          <td>${escapeHtml(desc) || '—'}</td>
-          <td style="text-align:center">${directBadge}</td>
-          <td style="text-align:right"><span class="price-text">${fmtINR(e.netAmount)}</span></td>
-          <td>
-            <div class="actions-cell" style="justify-content:center">
-              <button class="btn-icon edit" title="Edit amount" onclick="editBusinessEntry('${e.id}', ${e.netAmount})">
-                <i class="fas fa-pen"></i>
-              </button>
-              <button class="btn-icon delete" title="Delete entry" onclick="deleteBusinessEntry('${e.id}')">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
-          </td>
-        </tr>`;
-    }).join('');
+    ENTRIES_CACHE[vendorId] = await api(`/api/admin/customers/${vendorId}/business-entries`);
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-row">Failed to load entries.</td></tr>`;
+    ENTRIES_CACHE[vendorId] = [];
     showToast(err.message, 'error');
   }
+  if (EXPANDED_VENDOR_ID === vendorId) render();
 }
 
-async function editBusinessEntry(bookingId, currentAmount) {
-  const vendorId = BIZ_MODAL_VENDOR_ID;
-  if (!vendorId) return;
+function entriesRowHTML(vendorId) {
+  const list = ENTRIES_CACHE[vendorId];
+  if (list == null) {
+    return `<tr class="entries-row"><td colspan="8" class="entries-cell">
+      <div class="entries-wrap"><div class="empty-row">Loading entries…</div></div>
+    </td></tr>`;
+  }
+  if (!list.length) {
+    return `<tr class="entries-row"><td colspan="8" class="entries-cell">
+      <div class="entries-wrap"><div class="empty-row">No entries logged yet.</div></div>
+    </td></tr>`;
+  }
+  const rows = list.map(e => {
+    const dateLabel = formatPayDate(e.eventDate) + (e.eventDateTo ? ' → ' + formatPayDate(e.eventDateTo) : '');
+    const directBadge = e.directByClient
+      ? '<span class="source-pill self">Direct</span>'
+      : '<span style="color:var(--text-3)">—</span>';
+    const desc = (e.eventType || '') + (e.clientName ? ' · ' + e.clientName : '');
+    return `
+      <tr>
+        <td>${escapeHtml(dateLabel)}</td>
+        <td>${escapeHtml(desc) || '—'}</td>
+        <td style="text-align:center">${directBadge}</td>
+        <td style="text-align:right"><span class="price-text">${fmtINR(e.netAmount)}</span></td>
+        <td>
+          <div class="actions-cell" style="justify-content:center">
+            <button class="btn-icon edit" title="Edit amount" onclick="editBusinessEntry('${vendorId}', '${e.id}', ${e.netAmount})">
+              <i class="fas fa-pen"></i>
+            </button>
+            <button class="btn-icon delete" title="Delete entry" onclick="deleteBusinessEntry('${vendorId}', '${e.id}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+  return `<tr class="entries-row"><td colspan="8" class="entries-cell">
+    <div class="entries-wrap">
+      <div class="entries-title"><i class="fas fa-list"></i> Business Entries</div>
+      <table class="table table-inner">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Client / Description</th>
+            <th style="text-align:center">Direct?</th>
+            <th style="text-align:right">Amount (₹)</th>
+            <th style="text-align:center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </td></tr>`;
+}
+
+async function editBusinessEntry(vendorId, bookingId, currentAmount) {
   const input = prompt('New business amount (₹, net of GST):', String(currentAmount));
   if (input == null) return; // cancelled
   const amount = Number(input);
@@ -642,19 +663,18 @@ async function editBusinessEntry(bookingId, currentAmount) {
       body: JSON.stringify({ netAmount: amount }),
     });
     showToast('Entry updated. Commission recomputed.', 'success');
-    await renderBusinessEntries();
+    // Refresh entries for this vendor + vendor totals on the parent table.
+    ENTRIES_CACHE[vendorId] = await api(`/api/admin/customers/${vendorId}/business-entries`);
     await load();
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function deleteBusinessEntry(bookingId) {
-  const vendorId = BIZ_MODAL_VENDOR_ID;
-  if (!vendorId) return;
+async function deleteBusinessEntry(vendorId, bookingId) {
   if (!confirm('Delete this business entry? This will recompute the vendor\'s tier and commission.')) return;
   try {
     await api(`/api/admin/customers/${vendorId}/business-entry/${bookingId}`, { method: 'DELETE' });
     showToast('Entry deleted.', 'success');
-    await renderBusinessEntries();
+    ENTRIES_CACHE[vendorId] = await api(`/api/admin/customers/${vendorId}/business-entries`);
     await load();
   } catch (err) { showToast(err.message, 'error'); }
 }
