@@ -74,8 +74,10 @@ function populateLogBizVendorSelect() {
 }
 
 // Find the tier a vendor will be on after adding `addAmount` of business.
-// The admin-assigned tierOverride acts as a FLOOR — vendor can climb above it
-// via business, but never drops below it. Mirrors `tierWithFloor` on the server.
+// The admin-assigned tierOverride adds a head-start credit equal to that
+// tier's threshold — so Gold-floor (₹25L credit) + ₹30L of real business
+// counts as ₹55L of effective business and graduates to Platinum.
+// Mirrors `floorCredit` on the server.
 function projectTier(currentBusiness, addAmount, tierOverrideName) {
   // CUSTOMERS list returns each vendor's current tier already; but to project
   // an upgrade we need the full ladder. Quick inline copy of tiers (matches
@@ -86,13 +88,14 @@ function projectTier(currentBusiness, addAmount, tierOverrideName) {
     { name: 'Gold',     threshold: 2500000, discountPercent: 10   },
     { name: 'Platinum', threshold: 5000000, discountPercent: 15   },
   ];
-  const newTotal = (Number(currentBusiness) || 0) + (Number(addAmount) || 0);
-  let projected = TIERS[0];
-  for (const t of TIERS) if (newTotal >= t.threshold) projected = t;
+  let credit = 0;
   if (tierOverrideName) {
     const floor = TIERS.find(t => t.name.toLowerCase() === String(tierOverrideName).toLowerCase());
-    if (floor && floor.threshold > projected.threshold) projected = floor;
+    if (floor) credit = floor.threshold;
   }
+  const effective = (Number(currentBusiness) || 0) + (Number(addAmount) || 0) + credit;
+  let projected = TIERS[0];
+  for (const t of TIERS) if (effective >= t.threshold) projected = t;
   return projected;
 }
 

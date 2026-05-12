@@ -36,15 +36,14 @@ function deriveTier(businessTotal, tiers) {
   return current || { name: 'Bronze', threshold: 0, discountPercent: 5 };
 }
 
-// Apply the admin-assigned tier override as a FLOOR — vendor sees at least
-// the assigned tier, but can graduate to a higher one based on business.
-function tierWithFloor(computed, overrideName, tiers) {
-  if (!overrideName) return computed;
+// Convert an admin-assigned tier override into a head-start business credit.
+// Effective business = real business + this credit. A vendor placed on Gold
+// (threshold ₹25L) is treated as if they walked in with ₹25L already given,
+// so logging ₹30L of real business pushes them past Platinum (₹50L).
+function floorCredit(overrideName, tiers) {
+  if (!overrideName) return 0;
   const ov = tiers.find(t => (t.name || '').toLowerCase() === overrideName.toLowerCase());
-  if (!ov) return computed;
-  return (!computed || (Number(computed.threshold) || 0) < (Number(ov.threshold) || 0))
-    ? ov
-    : computed;
+  return ov ? (Number(ov.threshold) || 0) : 0;
 }
 
 // Tier override that was effective on a given date (walks history oldest-first).
@@ -80,9 +79,9 @@ router.get('/', (req, res) => {
   const payments  = readPayments();
   const tiers     = store.readTiers();
 
-  // Mirror customer.js: walk events oldest-first, applying tier-at-time +
-  // floor (with date-aware override history), so commissionEarned uses the
-  // same historically-accurate math the vendor sees on their dashboard.
+  // Mirror customer.js: walk events oldest-first, computing each event's
+  // tier-at-time from (cumulative real business + floor credit). The credit
+  // is the threshold of whichever override was effective on the event's date.
   function commissionEarnedFor(c) {
     const mine = bookings
       .filter(b => b.customerId === c.id && b.bookingStatus !== 'Cancelled' && !b.directByClient)
@@ -91,8 +90,8 @@ router.get('/', (req, res) => {
     for (const b of mine) {
       const amt = effectiveBase(b);
       running += amt;
-      const computed = (deriveTier(running, tiers)) || { discountPercent: 5 };
-      const eff      = tierWithFloor(computed, overrideAtDate(c, b.eventDate), tiers) || computed;
+      const credit = floorCredit(overrideAtDate(c, b.eventDate), tiers);
+      const eff    = deriveTier(running + credit, tiers) || { discountPercent: 5 };
       total += Math.round(amt * (Number(eff.discountPercent) || 0) / 100);
     }
     return total;
@@ -103,9 +102,11 @@ router.get('/', (req, res) => {
     const mineLoy  = mineAll.filter(b => !b.directByClient);
     const business = mineLoy.reduce((sum, b) => sum + effectiveBase(b), 0);
     // "Current" tier uses the LATEST override (today) — same as what new
-    // entries will be created under.
+    // entries will be created under. Override is applied as a head-start
+    // credit, then the tier is derived from the combined effective business.
     const today    = new Date().toISOString().split('T')[0];
-    const tier     = tierWithFloor(deriveTier(business, tiers), overrideAtDate(c, today), tiers);
+    const credit   = floorCredit(overrideAtDate(c, today), tiers);
+    const tier     = deriveTier(business + credit, tiers);
     const tierRate = Number(tier.discountPercent) || 0;
     const earned   = commissionEarnedFor(c);
     const paid     = payments
@@ -478,11 +479,11 @@ router.post('/:id/business-entry', (req, res) => {
     .filter(b => b.customerId === customer.id && b.bookingStatus !== 'Cancelled' && !b.directByClient)
     .reduce((s, b) => s + effectiveBase(b), 0);
   const projectedBusiness = direct ? business : business + amount;
-  // Apply the override as a floor so a vendor with an assigned tier never
-  // earns commission at a lower rate than they're entitled to. Mirrors the
+  // Override acts as a head-start credit added to the projected real business,
+  // then the tier is derived from the combined effective total. Mirrors the
   // calculation in GET / so the dashboard and the saved entry agree.
-  const computedTier = deriveTier(projectedBusiness, tiers);
-  const tier         = tierWithFloor(computedTier, overrideAtDate(customer, date), tiers) || computedTier;
+  const credit = floorCredit(overrideAtDate(customer, date), tiers);
+  const tier   = deriveTier(projectedBusiness + credit, tiers);
 
   const entry = {
     id:                 uuidv4(),
@@ -620,8 +621,8 @@ router.patch('/:vendorId/business-entry/:bookingId', (req, res) => {
     running += effectiveBase(x);
     if (x.id === b.id) break;
   }
-  const computed = deriveTier(running, tiers);
-  const eff      = tierWithFloor(computed, overrideAtDate(customer, b.eventDate), tiers) || computed;
+  const credit   = floorCredit(overrideAtDate(customer, b.eventDate), tiers);
+  const eff      = deriveTier(running + credit, tiers);
   const rate     = b.directByClient ? 0 : (Number(eff.discountPercent) || 0);
   b.discountPercent = rate;
   b.discountAmount  = b.directByClient ? 0 : Math.round((Number(b.totalPrice) || 0) * rate / 100);
@@ -658,14 +659,14 @@ router.get('/:id/unpaid-events', (req, res) => {
     .sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate));
 
   // Compute commission earned per event using historical tier-at-time + the
-  // override that was effective on each event's date.
+  // head-start credit from whichever override was effective on each event's date.
   let running = 0;
   const events = mine.map(b => {
     const total = effectiveBase(b);
     running += total;
-    const computed = deriveTier(running, tiers) || { discountPercent: 5 };
-    const eff      = tierWithFloor(computed, overrideAtDate(customer, b.eventDate), tiers) || computed;
-    const rate     = Number(eff.discountPercent) || 0;
+    const credit = floorCredit(overrideAtDate(customer, b.eventDate), tiers);
+    const eff    = deriveTier(running + credit, tiers) || { discountPercent: 5 };
+    const rate   = Number(eff.discountPercent) || 0;
     return {
       id:               b.id,
       eventDate:        b.eventDate,

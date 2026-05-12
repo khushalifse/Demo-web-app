@@ -37,14 +37,14 @@ function deriveTier(businessTotal, tiers) {
   return { current, next };
 }
 
-// Apply admin-assigned tier override as a floor — vendor never drops below it,
-// but can graduate higher organically.
-function applyTierFloor(computed, overrideName, tiers) {
-  if (!overrideName) return computed;
+// Convert an admin-assigned tier override into a head-start business credit.
+// Effective business = real business + this credit. A vendor placed on Gold
+// (threshold ₹25L) is treated as if they walked in with ₹25L already given,
+// so logging ₹30L of real business pushes them past Platinum (₹50L).
+function floorCredit(overrideName, tiers) {
+  if (!overrideName) return 0;
   const ov = tiers.find(t => (t.name || '').toLowerCase() === overrideName.toLowerCase());
-  if (!ov) return computed;
-  const cur = computed || { threshold: 0 };
-  return ((Number(cur.threshold) || 0) < (Number(ov.threshold) || 0)) ? ov : cur;
+  return ov ? (Number(ov.threshold) || 0) : 0;
 }
 
 // Find the tier override that was effective on a given date by walking the
@@ -87,36 +87,37 @@ router.get('/dashboard', (req, res) => {
   const businessGross = loyaltyActive.reduce((sum, b) => sum + effectiveBase(b), 0);
 
   const tiers = store.readTiers();
-  const { current } = deriveTier(businessGross, tiers);
-  // Every vendor starts at Bronze (threshold 0). Admin can override to a higher
-  // floor — that's applied here so the vendor sees at least the assigned tier.
-  const computed = current
+  // Add the override's threshold as a "head-start" credit, then derive the
+  // tier from the combined effective business. This makes the floor additive
+  // rather than a mere cap — a Gold-floor vendor who logs ₹30L of business is
+  // treated as having ₹55L total and graduates to Platinum.
+  const credit          = floorCredit(me.tierOverride, tiers);
+  const effectiveTotal  = businessGross + credit;
+  const { current }     = deriveTier(effectiveTotal, tiers);
+  const tier = current
     ? { name: current.name, discountPercent: current.discountPercent, threshold: current.threshold }
     : { name: 'Bronze', discountPercent: 5, threshold: 0 };
-  const tier = applyTierFloor(computed, me.tierOverride, tiers) || computed;
 
-  // The "next tier" must always be ABOVE the effective (floored) tier — not
-  // above the raw-business tier. Otherwise a vendor assigned Silver as a floor
-  // sees "Silver is your next tier" even though they're already at Silver.
+  // "Next tier" is the lowest one whose threshold is above the vendor's
+  // effective business (real + credit). Progress / remaining are measured
+  // in REAL business — the credit is already baked into the current tier
+  // they're sitting on.
   const sortedTiers   = [...tiers].sort((a, b) => a.threshold - b.threshold);
-  const effectiveT    = Number(tier.threshold) || 0;
-  const nextTierConf  = sortedTiers.find(t => Number(t.threshold) > effectiveT) || null;
-  // Progress bar should fill within the CURRENT tier's band — a Gold-floor
-  // vendor with ₹30L of business is 20% of the way from Gold (₹25L) to
-  // Platinum (₹50L), not 60% of the way from zero. Same idea for every tier:
-  // each band runs from the tier's own threshold to the next one's.
-  // For "remaining" we treat the floor as the starting line too — if a
-  // Gold-floor vendor has only ₹0 of real business, they still see "₹25L
-  // away from Platinum", not "₹50L away".
+  const currentT      = Number(tier.threshold) || 0;
+  const nextTierConf  = sortedTiers.find(t => Number(t.threshold) > effectiveTotal) || null;
   const nextTier = nextTierConf
     ? (() => {
-        const baseline   = Math.max(businessGross, effectiveT);
-        const bandSize   = Math.max(1, Number(nextTierConf.threshold) - effectiveT);
-        const withinBand = Math.max(0, businessGross - effectiveT);
+        // Real business needed to reach the next tier, taking the credit into
+        // account. e.g. Gold-floor vendor with ₹0 real business → needs ₹25L
+        // more real business to hit Platinum (₹50L threshold − ₹25L credit).
+        const realRemaining = Math.max(0, Number(nextTierConf.threshold) - effectiveTotal);
+        // Progress fills within the current tier's band.
+        const bandSize   = Math.max(1, Number(nextTierConf.threshold) - currentT);
+        const withinBand = Math.max(0, effectiveTotal - currentT);
         return {
           name: nextTierConf.name,
           threshold: nextTierConf.threshold,
-          remaining: Math.max(0, nextTierConf.threshold - baseline),
+          remaining: realRemaining,
           progressPercent: Math.min(100, Math.round((withinBand / bandSize) * 100)),
           extraReversalRate: Math.max(0, (nextTierConf.discountPercent || 0) - (tier.discountPercent || 0)),
         };
@@ -136,12 +137,12 @@ router.get('/dashboard', (req, res) => {
     const total = effectiveBase(b);
     const direct = !!b.directByClient;
     if (!direct) running += total;
-    const computed = deriveTier(running, tiers).current
-                  || { name: 'Bronze', discountPercent: 5 };
     // Use the tier override that was active on this event's date — past
     // events keep their original tier even if the override has been changed.
     const overrideOnDate = overrideAtDate(me, b.eventDate);
-    const ttat = applyTierFloor(computed, overrideOnDate, tiers) || computed;
+    const eventCredit    = floorCredit(overrideOnDate, tiers);
+    const ttat = deriveTier(running + eventCredit, tiers).current
+              || { name: 'Bronze', discountPercent: 5 };
     const rate = direct ? 0 : (Number(ttat.discountPercent) || 0);
     const earned          = direct ? 0 : Math.round(total * rate     / 100);
     const wouldEarnAtNext = direct ? 0 : Math.round(total * nextRate / 100);
