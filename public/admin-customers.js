@@ -474,7 +474,11 @@ function render() {
             <td data-label="Company">${escapeHtml(c.companyName || '—')}</td>
             <td data-label="POCs">${pocCell}</td>
             <td data-label="Tier"><span class="tier-pill tier-${tierCls}"><i class="fas fa-medal"></i> ${tierName} <span style="opacity:0.75">(${tierRate}%)</span></span>${overrideHint}</td>
-            <td data-label="Bookings" style="text-align:right">${c.bookingsCount || 0}</td>
+            <td data-label="Bookings" style="text-align:right">
+              <button type="button" class="link-amount" title="View / edit entries" onclick="openBusinessEntries('${c.id}')">
+                ${c.bookingsCount || 0}
+              </button>
+            </td>
             <td data-label="Business (net)" style="text-align:right">
               <button type="button" class="link-amount" title="View / edit entries" onclick="openBusinessEntries('${c.id}')">
                 ${fmtINR(c.businessGross || 0)}
