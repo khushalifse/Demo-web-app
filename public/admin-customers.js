@@ -592,9 +592,13 @@ async function submitResetPassword(e) {
     document.getElementById('resetPwdForm').style.display = 'none';
     const card = document.getElementById('rp-credsCard');
     card.style.display = '';
-    document.getElementById('rp-credsEmail').textContent    = `Email: ${res.credentials.email}`;
-    document.getElementById('rp-credsPassword').textContent = `Password: ${res.credentials.password}`;
-    document.getElementById('rp-credsLoginUrl').textContent = `Login: ${location.origin}${res.credentials.loginUrl}`;
+    const rpEmail = document.getElementById('rp-credsEmail');
+    const rpPwd   = document.getElementById('rp-credsPassword');
+    const rpUrl   = document.getElementById('rp-credsLoginUrl');
+    const rpFullUrl = `${location.origin}${res.credentials.loginUrl}`;
+    rpEmail.textContent = `Email: ${res.credentials.email}`;     rpEmail.dataset.copy = res.credentials.email;
+    rpPwd.textContent   = `Password: ${res.credentials.password}`; rpPwd.dataset.copy = res.credentials.password;
+    rpUrl.textContent   = `Login: ${rpFullUrl}`;                  rpUrl.dataset.copy = rpFullUrl;
     showToast('Password reset. Share the credentials with the vendor.', 'success');
     await load();
   } catch (err) {
@@ -603,8 +607,10 @@ async function submitResetPassword(e) {
 }
 
 async function copyText(elId) {
+  const el = document.getElementById(elId);
+  const text = el?.dataset?.copy ?? el?.textContent ?? '';
   try {
-    await navigator.clipboard.writeText(document.getElementById(elId).textContent);
+    await navigator.clipboard.writeText(text);
     showToast('Copied!', 'success');
   } catch {
     showToast('Copy failed — please copy manually.', 'error');
@@ -730,10 +736,13 @@ async function submitManual(e) {
 function showCredentials(creds, customer) {
   const card = document.getElementById('credsCard');
   card.style.display = '';
-  document.getElementById('credsEmail').textContent    = `Email: ${creds.email}`;
-  document.getElementById('credsPassword').textContent = `Password: ${creds.password}`;
   const fullUrl = location.origin + creds.loginUrl;
-  document.getElementById('credsLoginUrl').textContent = `Login: ${fullUrl}`;
+  const emailEl = document.getElementById('credsEmail');
+  const pwdEl   = document.getElementById('credsPassword');
+  const urlEl   = document.getElementById('credsLoginUrl');
+  emailEl.textContent = `Email: ${creds.email}`;       emailEl.dataset.copy = creds.email;
+  pwdEl.textContent   = `Password: ${creds.password}`; pwdEl.dataset.copy   = creds.password;
+  urlEl.textContent   = `Login: ${fullUrl}`;           urlEl.dataset.copy   = fullUrl;
   document.getElementById('credsMessage').textContent =
     `Hi ${customer.name},\n\n` +
     `Your AJ Vendor Portal account is ready.\n\n` +
@@ -744,7 +753,8 @@ function showCredentials(creds, customer) {
 }
 
 async function copyCreds(id) {
-  const text = document.getElementById(id).textContent;
+  const el = document.getElementById(id);
+  const text = el?.dataset?.copy ?? el?.textContent ?? '';
   try {
     await navigator.clipboard.writeText(text);
     showToast('Copied!', 'success');
