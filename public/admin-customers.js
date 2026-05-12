@@ -87,8 +87,27 @@ function previewFloorCredit(tierOverrideName) {
   const floor = PREVIEW_TIERS.find(t => t.name.toLowerCase() === String(tierOverrideName).toLowerCase());
   return floor ? floor.threshold : 0;
 }
+// Client mirror of the server's commission rule: flat at the tier the booking
+// ends in unless the booking crosses 2+ tier boundaries (then banded).
 function previewBandedCommission(cumulativeBefore, amount) {
   const after = cumulativeBefore + amount;
+
+  let endTier = PREVIEW_TIERS[0];
+  for (const t of PREVIEW_TIERS) if (after >= t.threshold) endTier = t;
+
+  let crossings = 0;
+  for (const t of PREVIEW_TIERS) {
+    if (t.threshold > 0 && cumulativeBefore < t.threshold && after > t.threshold) crossings++;
+  }
+
+  if (crossings < 2) {
+    const commission = Math.round(amount * endTier.discountPercent / 100);
+    return {
+      commission,
+      breakdown: [{ tier: endTier.name, rate: endTier.discountPercent, amount, commission }],
+    };
+  }
+
   let commission = 0;
   const breakdown = [];
   for (let i = 0; i < PREVIEW_TIERS.length; i++) {
