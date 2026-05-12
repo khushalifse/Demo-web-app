@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <style>
     /* Customer-admin specific tweaks layered on top of styles.css. */
     .commission-input {
@@ -218,13 +219,13 @@
             <h2 style="margin:0"><i class="fas fa-users"></i> Vendors</h2>
             <span style="color:var(--text-2);font-size:0.82rem;flex:1">Active vendor accounts with their tier &amp; commission earned</span>
             <div style="display:flex;gap:8px">
-              <button type="button" class="btn btn-ghost" style="padding:8px 14px;font-size:0.82rem" onclick="exportVendors()">
-                <i class="fas fa-file-export"></i> Export
+              <button type="button" class="btn btn-ghost" style="padding:8px 14px;font-size:0.82rem" onclick="exportVendorsExcel()">
+                <i class="fas fa-file-excel"></i> Export Excel
               </button>
               <button type="button" class="btn btn-ghost" style="padding:8px 14px;font-size:0.82rem" onclick="document.getElementById('importVendorsFile').click()">
-                <i class="fas fa-file-import"></i> Import
+                <i class="fas fa-file-import"></i> Import Excel
               </button>
-              <input type="file" id="importVendorsFile" accept="application/json,.json" style="display:none" onchange="importVendors(event)" />
+              <input type="file" id="importVendorsFile" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" style="display:none" onchange="importVendorsExcel(event)" />
             </div>
           </div>
           <div class="table-wrapper">
@@ -595,6 +596,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="admin-customers.js?v=20260512b"></script>
+  <script src="admin-customers.js?v=20260512c"></script>
 </body>
 </html>

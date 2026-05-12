@@ -544,50 +544,103 @@ async function deleteCustomer(id) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-function exportVendors() {
-  // Trigger a browser download by navigating to the export endpoint. Same-origin
-  // request keeps the session cookie attached so requireAuth is satisfied.
-  const a = document.createElement('a');
-  a.href = '/api/admin/customers/export';
-  a.rel  = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  showToast('Export started — check your downloads.', 'success');
+// Column order shared between Excel export and import. Keep this list as the
+// single source of truth so re-importing an exported file just works. Password
+// is intentionally blank in exports (we don't expose bcrypt hashes) and is only
+// required when creating new vendors via Import.
+const EXCEL_COLUMNS = [
+  'Owner Name', 'Email', 'Phone', 'Company / Organisation',
+  'Password (new vendors only)', 'Initial Tier',
+  'POCs (semicolon-separated)', 'Status', 'Commission %', 'Created',
+];
+
+function exportVendorsExcel() {
+  if (typeof XLSX === 'undefined') {
+    showToast('Excel library failed to load — check your internet connection.', 'error');
+    return;
+  }
+  const data = (CUSTOMERS || []).map(c => ({
+    'Owner Name':                  c.name || '',
+    'Email':                       c.email || '',
+    'Phone':                       c.phone || '',
+    'Company / Organisation':      c.companyName || '',
+    'Password (new vendors only)': '',
+    'Initial Tier':                c.tierOverride || '',
+    'POCs (semicolon-separated)':  (c.pocs || []).join('; '),
+    'Status':                      c.status || '',
+    'Commission %':                Number(c.commissionPercent) || 0,
+    'Created':                     c.createdAt ? new Date(c.createdAt).toISOString().split('T')[0] : '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(data, { header: EXCEL_COLUMNS });
+  ws['!cols'] = [{ wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 26 }, { wch: 24 }, { wch: 14 }, { wch: 32 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Vendors');
+  const stamp = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `vendors-export-${stamp}.xlsx`);
+  showToast(`Exported ${data.length} vendor row(s).`, 'success');
 }
 
-async function importVendors(ev) {
+async function importVendorsExcel(ev) {
   const input = ev.target;
   const file  = input.files && input.files[0];
   input.value = ''; // allow re-uploading the same filename later
   if (!file) return;
+  if (typeof XLSX === 'undefined') {
+    showToast('Excel library failed to load — check your internet connection.', 'error');
+    return;
+  }
 
-  let parsed;
+  let sheetRows;
   try {
-    parsed = JSON.parse(await file.text());
+    const buf = await file.arrayBuffer();
+    const wb  = XLSX.read(buf, { type: 'array' });
+    const ws  = wb.Sheets[wb.SheetNames[0]];
+    sheetRows = XLSX.utils.sheet_to_json(ws, { defval: '' });
   } catch {
-    showToast('That file is not valid JSON.', 'error');
+    showToast('Could not read that file as an Excel / CSV sheet.', 'error');
     return;
   }
-  // Accept either a bare array (export format) or { vendors: [...] }.
-  const vendors = Array.isArray(parsed) ? parsed
-                : (parsed && Array.isArray(parsed.vendors)) ? parsed.vendors
-                : null;
-  if (!vendors) {
-    showToast('Expected an array of vendors (the export format).', 'error');
-    return;
-  }
-  if (!confirm(`Import ${vendors.length} vendor record(s)? Existing accounts (matched by email) will be kept as-is.`)) return;
+  if (!sheetRows.length) { showToast('The sheet is empty.', 'error'); return; }
+
+  // Map sheet headers (tolerant of small variations) → API row fields.
+  const rows = sheetRows.map(r => {
+    const get = (...keys) => {
+      for (const k of keys) {
+        const hit = Object.keys(r).find(h => h.toLowerCase().trim() === k.toLowerCase());
+        if (hit && r[hit] !== '' && r[hit] != null) return String(r[hit]);
+      }
+      return '';
+    };
+    return {
+      name:         get('Owner Name', 'Name'),
+      email:        get('Email'),
+      phone:        get('Phone'),
+      companyName:  get('Company / Organisation', 'Company'),
+      password:     get('Password (new vendors only)', 'Password'),
+      tierOverride: get('Initial Tier', 'Tier'),
+      pocs:         get('POCs (semicolon-separated)', 'POCs'),
+    };
+  });
+
+  if (!confirm(`Import ${rows.length} row(s)? New vendors will be created; existing emails are skipped.`)) return;
 
   try {
-    const res = await api('/api/admin/customers/import', {
+    const res = await api('/api/admin/customers/bulk-create', {
       method: 'POST',
-      body: JSON.stringify({ vendors }),
+      body: JSON.stringify({ rows }),
     });
-    const parts = [`${res.imported} imported`];
-    if (res.skipped) parts.push(`${res.skipped} skipped (already exist)`);
-    if (res.invalid) parts.push(`${res.invalid} invalid`);
-    showToast(parts.join(' · '), 'success');
+    const parts = [`${res.imported} created`];
+    if (res.skipped) parts.push(`${res.skipped} skipped (email exists)`);
+    if (res.errors && res.errors.length) {
+      parts.push(`${res.errors.length} error(s)`);
+      console.warn('Vendor import errors:', res.errors);
+    }
+    showToast(parts.join(' · '), res.imported > 0 ? 'success' : 'error');
+    if (res.errors && res.errors.length) {
+      // Surface the first few errors so the admin can fix the sheet.
+      const detail = res.errors.slice(0, 5).map(e => `Row ${e.row}: ${e.reason}`).join('\n');
+      alert(`Some rows didn't import:\n\n${detail}${res.errors.length > 5 ? `\n…and ${res.errors.length - 5} more (see console).` : ''}`);
+    }
     await load();
   } catch (err) {
     showToast(err.message, 'error');

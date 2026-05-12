@@ -179,6 +179,80 @@ router.post('/import', (req, res) => {
   res.json({ success: true, imported, skipped, invalid });
 });
 
+// POST /api/admin/customers/bulk-create — Excel/CSV-friendly bulk import.
+// Accepts { rows: [{ name, email, phone, companyName, password, tierOverride,
+// pocs }, ...] } with plain row data — server generates the ID and hashes the
+// password. Existing accounts (matched by email) are skipped, never overwritten.
+router.post('/bulk-create', async (req, res) => {
+  const rows = (req.body && Array.isArray(req.body.rows)) ? req.body.rows : null;
+  if (!rows) return res.status(400).json({ error: 'Expected { rows: [ ... ] }.' });
+  if (rows.length > 500) return res.status(413).json({ error: 'Too many rows (max 500).' });
+
+  const customers = readCustomers();
+  const tiers     = store.readTiers();
+  const tierByName = new Map(tiers.map(t => [(t.name || '').toLowerCase(), t.name]));
+  const existingEmails = new Set(customers.map(c => (c.email || '').toLowerCase()));
+
+  let imported = 0, skipped = 0;
+  const errors = [];
+  const created = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i] || {};
+    const rowNum = i + 2; // +1 for 0-index, +1 for header row in the sheet
+    const name        = String(r.name || '').trim();
+    const email       = String(r.email || '').trim().toLowerCase();
+    const companyName = String(r.companyName || '').trim();
+    const password    = String(r.password || '');
+    const phone       = String(r.phone || '').trim() || null;
+    const tierRaw     = String(r.tierOverride || '').trim();
+    const tierOverride = tierRaw ? (tierByName.get(tierRaw.toLowerCase()) || null) : null;
+
+    let pocs = [];
+    if (Array.isArray(r.pocs)) pocs = r.pocs.map(s => String(s).trim()).filter(Boolean);
+    else if (typeof r.pocs === 'string')
+      pocs = r.pocs.split(/[;,\n]/).map(s => s.trim()).filter(Boolean);
+
+    if (!name || !email || !companyName) {
+      errors.push({ row: rowNum, reason: 'Missing name, email, or company.' }); continue;
+    }
+    if (!password || password.length < 6) {
+      errors.push({ row: rowNum, reason: 'Password is required (min 6 chars) for new vendors.' }); continue;
+    }
+    if (existingEmails.has(email)) { skipped++; continue; }
+
+    const hashed = await bcrypt.hash(password, 12);
+    const customer = {
+      id:                uuidv4(),
+      name,
+      email,
+      phone,
+      companyName,
+      password:          hashed,
+      role:              'customer',
+      status:            'approved',
+      source:            'excel-import',
+      commissionPercent: 0,
+      tierOverride,
+      tierOverrideHistory: tierOverride
+        ? [{ tier: tierOverride, effectiveFrom: new Date().toISOString().split('T')[0] }]
+        : [],
+      pocs,
+      mustChangePassword: true,
+      passwordChangedAt:  null,
+      createdAt:         new Date().toISOString(),
+      approvedAt:        new Date().toISOString(),
+      declinedAt:        null,
+    };
+    customers.push(customer);
+    existingEmails.add(email);
+    created.push({ row: rowNum, email, name });
+    imported++;
+  }
+  if (imported > 0) writeCustomers(customers);
+  res.json({ success: true, imported, skipped, errors, created });
+});
+
 // PATCH /api/admin/customers/:id/approve
 router.patch('/:id/approve', (req, res) => {
   const customers = readCustomers();
