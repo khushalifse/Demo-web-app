@@ -101,14 +101,26 @@ router.get('/dashboard', (req, res) => {
   const sortedTiers   = [...tiers].sort((a, b) => a.threshold - b.threshold);
   const effectiveT    = Number(tier.threshold) || 0;
   const nextTierConf  = sortedTiers.find(t => Number(t.threshold) > effectiveT) || null;
+  // Progress bar should fill within the CURRENT tier's band — a Gold-floor
+  // vendor with ₹30L of business is 20% of the way from Gold (₹25L) to
+  // Platinum (₹50L), not 60% of the way from zero. Same idea for every tier:
+  // each band runs from the tier's own threshold to the next one's.
+  // For "remaining" we treat the floor as the starting line too — if a
+  // Gold-floor vendor has only ₹0 of real business, they still see "₹25L
+  // away from Platinum", not "₹50L away".
   const nextTier = nextTierConf
-    ? {
-        name: nextTierConf.name,
-        threshold: nextTierConf.threshold,
-        remaining: Math.max(0, nextTierConf.threshold - businessGross),
-        progressPercent: Math.min(100, Math.round((businessGross / nextTierConf.threshold) * 100)),
-        extraReversalRate: Math.max(0, (nextTierConf.discountPercent || 0) - (tier.discountPercent || 0)),
-      }
+    ? (() => {
+        const baseline   = Math.max(businessGross, effectiveT);
+        const bandSize   = Math.max(1, Number(nextTierConf.threshold) - effectiveT);
+        const withinBand = Math.max(0, businessGross - effectiveT);
+        return {
+          name: nextTierConf.name,
+          threshold: nextTierConf.threshold,
+          remaining: Math.max(0, nextTierConf.threshold - baseline),
+          progressPercent: Math.min(100, Math.round((withinBand / bandSize) * 100)),
+          extraReversalRate: Math.max(0, (nextTierConf.discountPercent || 0) - (tier.discountPercent || 0)),
+        };
+      })()
     : null;
 
   // Per-event commission breakdown — historically accurate. Walk the bookings
