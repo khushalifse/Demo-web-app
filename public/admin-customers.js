@@ -475,7 +475,11 @@ function render() {
             <td data-label="POCs">${pocCell}</td>
             <td data-label="Tier"><span class="tier-pill tier-${tierCls}"><i class="fas fa-medal"></i> ${tierName} <span style="opacity:0.75">(${tierRate}%)</span></span>${overrideHint}</td>
             <td data-label="Bookings" style="text-align:right">${c.bookingsCount || 0}</td>
-            <td data-label="Business (net)" style="text-align:right"><span class="price-text">${fmtINR(c.businessGross || 0)}</span></td>
+            <td data-label="Business (net)" style="text-align:right">
+              <button type="button" class="link-amount" title="View / edit entries" onclick="openBusinessEntries('${c.id}')">
+                ${fmtINR(c.businessGross || 0)}
+              </button>
+            </td>
             <td data-label="Commission Earned" style="text-align:right"><span class="price-text" style="color:var(--accent);font-weight:700">${fmtINR(c.commissionEarned || 0)}</span></td>
             <td data-label="Actions">
               <div class="actions-cell" style="justify-content:center">
@@ -559,6 +563,97 @@ const EXCEL_COLUMNS = [
   'Password (new vendors only)', 'Initial Tier',
   'POCs (semicolon-separated)', 'Status', 'Commission %', 'Created',
 ];
+
+/* ─── Business Entries modal (per-vendor list with edit/delete) ────────── */
+let BIZ_MODAL_VENDOR_ID = null;
+
+async function openBusinessEntries(vendorId) {
+  const v = CUSTOMERS.find(c => c.id === vendorId);
+  if (!v) { showToast('Vendor not found.', 'error'); return; }
+  BIZ_MODAL_VENDOR_ID = vendorId;
+  document.getElementById('be-vendorName').textContent =
+    v.name + (v.companyName ? ' · ' + v.companyName : '');
+  document.getElementById('be-rows').innerHTML = `<tr><td colspan="5" class="empty-row">Loading…</td></tr>`;
+  document.getElementById('bizEntriesModal').classList.add('open');
+  await renderBusinessEntries();
+}
+
+function closeBizEntries() {
+  document.getElementById('bizEntriesModal').classList.remove('open');
+  BIZ_MODAL_VENDOR_ID = null;
+}
+
+async function renderBusinessEntries() {
+  const vendorId = BIZ_MODAL_VENDOR_ID;
+  if (!vendorId) return;
+  const tbody = document.getElementById('be-rows');
+  try {
+    const list = await api(`/api/admin/customers/${vendorId}/business-entries`);
+    if (!list.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-row">No entries logged yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = list.map(e => {
+      const dateLabel = formatPayDate(e.eventDate) + (e.eventDateTo ? ' → ' + formatPayDate(e.eventDateTo) : '');
+      const directBadge = e.directByClient
+        ? '<span class="source-pill self">Direct</span>'
+        : '<span style="color:var(--text-3)">—</span>';
+      const desc = (e.eventType || '') + (e.clientName ? ' · ' + e.clientName : '');
+      return `
+        <tr>
+          <td>${escapeHtml(dateLabel)}</td>
+          <td>${escapeHtml(desc) || '—'}</td>
+          <td style="text-align:center">${directBadge}</td>
+          <td style="text-align:right"><span class="price-text">${fmtINR(e.netAmount)}</span></td>
+          <td>
+            <div class="actions-cell" style="justify-content:center">
+              <button class="btn-icon edit" title="Edit amount" onclick="editBusinessEntry('${e.id}', ${e.netAmount})">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button class="btn-icon delete" title="Delete entry" onclick="deleteBusinessEntry('${e.id}')">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-row">Failed to load entries.</td></tr>`;
+    showToast(err.message, 'error');
+  }
+}
+
+async function editBusinessEntry(bookingId, currentAmount) {
+  const vendorId = BIZ_MODAL_VENDOR_ID;
+  if (!vendorId) return;
+  const input = prompt('New business amount (₹, net of GST):', String(currentAmount));
+  if (input == null) return; // cancelled
+  const amount = Number(input);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    showToast('Amount must be a number greater than zero.', 'error'); return;
+  }
+  try {
+    await api(`/api/admin/customers/${vendorId}/business-entry/${bookingId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ netAmount: amount }),
+    });
+    showToast('Entry updated. Commission recomputed.', 'success');
+    await renderBusinessEntries();
+    await load();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteBusinessEntry(bookingId) {
+  const vendorId = BIZ_MODAL_VENDOR_ID;
+  if (!vendorId) return;
+  if (!confirm('Delete this business entry? This will recompute the vendor\'s tier and commission.')) return;
+  try {
+    await api(`/api/admin/customers/${vendorId}/business-entry/${bookingId}`, { method: 'DELETE' });
+    showToast('Entry deleted.', 'success');
+    await renderBusinessEntries();
+    await load();
+  } catch (err) { showToast(err.message, 'error'); }
+}
 
 function exportVendorsExcel() {
   if (typeof XLSX === 'undefined') {

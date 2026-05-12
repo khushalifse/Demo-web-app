@@ -519,6 +519,97 @@ router.post('/:id/business-entry', (req, res) => {
   });
 });
 
+// GET /api/admin/customers/:id/business-entries
+// All bookings tied to this vendor (both loyalty-counting and direct-by-client),
+// chronological. Used by the admin "view & edit business entries" modal.
+router.get('/:id/business-entries', (req, res) => {
+  const customers = readCustomers();
+  const customer  = customers.find(c => c.id === req.params.id);
+  if (!customer) return res.status(404).json({ error: 'Vendor not found.' });
+
+  const list = readBookings()
+    .filter(b => b.customerId === customer.id)
+    .sort((a, b) => new Date(b.eventDate) - new Date(a.eventDate))
+    .map(b => ({
+      id:             b.id,
+      eventDate:      b.eventDate,
+      eventDateTo:    b.eventDateTo || null,
+      eventType:      b.eventType || '',
+      clientName:     b.clientName || '',
+      netAmount:      Number(b.totalPrice) || 0,
+      directByClient: !!b.directByClient,
+      bookingStatus:  b.bookingStatus,
+      poc:            b.poc || null,
+      createdAt:      b.createdAt,
+    }));
+  res.json(list);
+});
+
+// PATCH /api/admin/customers/:vendorId/business-entry/:bookingId
+// Edit a previously logged business entry. Only the admin-facing fields are
+// accepted (amount, dates, client, description, direct flag). The booking's
+// stored discountPercent/discountAmount are recomputed from cumulative business
+// up to this event's date, applying the tier-override floor — same logic the
+// dashboards use, so the saved record stays consistent.
+router.patch('/:vendorId/business-entry/:bookingId', (req, res) => {
+  const customers = readCustomers();
+  const customer  = customers.find(c => c.id === req.params.vendorId);
+  if (!customer) return res.status(404).json({ error: 'Vendor not found.' });
+
+  const bookings = readBookings();
+  const idx = bookings.findIndex(b => b.id === req.params.bookingId && b.customerId === customer.id);
+  if (idx === -1) return res.status(404).json({ error: 'Entry not found for this vendor.' });
+
+  const b = bookings[idx];
+  const { netAmount, eventDate, eventDateTo, clientName, description, directByClient, poc } = req.body || {};
+
+  if (netAmount != null) {
+    const n = Number(netAmount);
+    if (!Number.isFinite(n) || n <= 0) return res.status(400).json({ error: 'netAmount must be > 0.' });
+    b.totalPrice = n;
+    b.fullPrice  = n;
+  }
+  if (eventDate)         b.eventDate     = String(eventDate);
+  if (eventDateTo !== undefined) b.eventDateTo = eventDateTo ? String(eventDateTo) : null;
+  if (clientName != null) b.clientName   = String(clientName).trim() || customer.name;
+  if (description != null) b.eventType   = String(description).trim() || 'Business Entry';
+  if (directByClient !== undefined) b.directByClient = !!directByClient;
+  if (poc !== undefined)  b.poc          = poc ? String(poc).trim() : null;
+  b.updatedAt = new Date().toISOString();
+
+  // Recompute tier-at-time using the floored logic, then refresh the saved
+  // discount fields so exports / raw reads stay consistent with the dashboard.
+  const tiers = store.readTiers();
+  const chrono = bookings
+    .filter(x => x.customerId === customer.id && x.bookingStatus !== 'Cancelled' && !x.directByClient)
+    .sort((x, y) => new Date(x.eventDate) - new Date(y.eventDate));
+  let running = 0;
+  for (const x of chrono) {
+    running += effectiveBase(x);
+    if (x.id === b.id) break;
+  }
+  const computed = deriveTier(running, tiers);
+  const eff      = tierWithFloor(computed, overrideAtDate(customer, b.eventDate), tiers) || computed;
+  const rate     = b.directByClient ? 0 : (Number(eff.discountPercent) || 0);
+  b.discountPercent = rate;
+  b.discountAmount  = b.directByClient ? 0 : Math.round((Number(b.totalPrice) || 0) * rate / 100);
+
+  bookings[idx] = b;
+  fs.writeFileSync(BOOKINGS_PATH, JSON.stringify(bookings, null, 2), 'utf8');
+  res.json({ success: true, entry: b });
+});
+
+// DELETE /api/admin/customers/:vendorId/business-entry/:bookingId
+router.delete('/:vendorId/business-entry/:bookingId', (req, res) => {
+  const bookings = readBookings();
+  const idx = bookings.findIndex(b =>
+    b.id === req.params.bookingId && b.customerId === req.params.vendorId);
+  if (idx === -1) return res.status(404).json({ error: 'Entry not found for this vendor.' });
+  bookings.splice(idx, 1);
+  fs.writeFileSync(BOOKINGS_PATH, JSON.stringify(bookings, null, 2), 'utf8');
+  res.json({ success: true });
+});
+
 // GET /api/admin/customers/:id/unpaid-events
 // Returns the vendor's events that still owe commission (unpaid + partial),
 // with the exact amount remaining per event. Used by the payment form to
