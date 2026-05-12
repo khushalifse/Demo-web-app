@@ -65,8 +65,10 @@ function populateLogBizVendorSelect() {
   syncEndDateMin();
 }
 
-// Find the next tier above a vendor's current business + new amount.
-function projectTier(currentBusiness, addAmount) {
+// Find the tier a vendor will be on after adding `addAmount` of business.
+// The admin-assigned tierOverride acts as a FLOOR — vendor can climb above it
+// via business, but never drops below it. Mirrors `tierWithFloor` on the server.
+function projectTier(currentBusiness, addAmount, tierOverrideName) {
   // CUSTOMERS list returns each vendor's current tier already; but to project
   // an upgrade we need the full ladder. Quick inline copy of tiers (matches
   // server defaults). The server accepts whatever it is — we just preview.
@@ -79,6 +81,10 @@ function projectTier(currentBusiness, addAmount) {
   const newTotal = (Number(currentBusiness) || 0) + (Number(addAmount) || 0);
   let projected = TIERS[0];
   for (const t of TIERS) if (newTotal >= t.threshold) projected = t;
+  if (tierOverrideName) {
+    const floor = TIERS.find(t => t.name.toLowerCase() === String(tierOverrideName).toLowerCase());
+    if (floor && floor.threshold > projected.threshold) projected = floor;
+  }
   return projected;
 }
 
@@ -153,7 +159,7 @@ function updateLogBizPreview() {
   upliftBox.style.borderColor = '';
   upliftBox.style.color = '';
 
-  const projected = projectTier(v.businessGross, amount);
+  const projected = projectTier(v.businessGross, amount, v.tierOverride);
   if (projected.name !== currentTier && amount > 0) {
     upliftBox.style.display = '';
     upliftBox.innerHTML = '<i class="fas fa-rocket"></i> This entry will push them into <strong id="lbp-newTier">' + projected.name + ' (' + projected.discountPercent + '%)</strong>!';
