@@ -116,6 +116,22 @@ router.get('/', (req, res) => {
       .filter(Boolean)
       .sort()
       .pop() || null;
+    // Inline entries so the admin's expandable panel always agrees with the
+    // bookingsCount above — same filter, same source. Avoids any chance of a
+    // separate endpoint disagreeing.
+    const entries = mineAll
+      .slice()
+      .sort((a, b) => new Date(b.eventDate) - new Date(a.eventDate))
+      .map(b => ({
+        id:             b.id,
+        eventDate:      b.eventDate,
+        eventDateTo:    b.eventDateTo || null,
+        eventType:      b.eventType || '',
+        clientName:     b.clientName || '',
+        netAmount:      Number(b.totalPrice) || 0,
+        directByClient: !!b.directByClient,
+        bookingStatus:  b.bookingStatus,
+      }));
     return {
       ...safeCustomer(c),
       bookingsCount:         mineAll.length,
@@ -125,6 +141,7 @@ router.get('/', (req, res) => {
       commissionPaid:        paid,
       commissionOutstanding: Math.max(0, earned - paid),
       lastEventDate,
+      entries,
     };
   });
 

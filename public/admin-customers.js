@@ -574,37 +574,19 @@ const EXCEL_COLUMNS = [
 
 /* ─── Business Entries (inline expandable row under each vendor) ──────── */
 let EXPANDED_VENDOR_ID = null;
-const ENTRIES_CACHE = {}; // vendorId → array | null (null = loading)
 
-async function openBusinessEntries(vendorId) {
+function openBusinessEntries(vendorId) {
   // Toggle: click the same vendor's link again to collapse.
-  if (EXPANDED_VENDOR_ID === vendorId) {
-    EXPANDED_VENDOR_ID = null;
-    render();
-    return;
-  }
-  EXPANDED_VENDOR_ID = vendorId;
-  ENTRIES_CACHE[vendorId] = null; // show "Loading…" while we fetch
+  EXPANDED_VENDOR_ID = (EXPANDED_VENDOR_ID === vendorId) ? null : vendorId;
   render();
-  try {
-    ENTRIES_CACHE[vendorId] = await api(`/api/admin/customers/${vendorId}/business-entries`);
-  } catch (err) {
-    ENTRIES_CACHE[vendorId] = [];
-    showToast(err.message, 'error');
-  }
-  if (EXPANDED_VENDOR_ID === vendorId) render();
 }
 
 function entriesRowHTML(vendorId) {
-  const list = ENTRIES_CACHE[vendorId];
-  if (list == null) {
-    return `<tr class="entries-row"><td colspan="8" class="entries-cell">
-      <div class="entries-wrap"><div class="empty-row">Loading entries…</div></div>
-    </td></tr>`;
-  }
+  const v = CUSTOMERS.find(c => c.id === vendorId);
+  const list = (v && Array.isArray(v.entries)) ? v.entries : [];
   if (!list.length) {
     return `<tr class="entries-row"><td colspan="8" class="entries-cell">
-      <div class="entries-wrap"><div class="empty-row">No entries logged yet.</div></div>
+      <div class="entries-wrap"><div class="empty-row">No entries logged yet for this vendor.</div></div>
     </td></tr>`;
   }
   const rows = list.map(e => {
@@ -663,9 +645,7 @@ async function editBusinessEntry(vendorId, bookingId, currentAmount) {
       body: JSON.stringify({ netAmount: amount }),
     });
     showToast('Entry updated. Commission recomputed.', 'success');
-    // Refresh entries for this vendor + vendor totals on the parent table.
-    ENTRIES_CACHE[vendorId] = await api(`/api/admin/customers/${vendorId}/business-entries`);
-    await load();
+    await load(); // reloads vendor list — entries embedded in the response
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -674,7 +654,6 @@ async function deleteBusinessEntry(vendorId, bookingId) {
   try {
     await api(`/api/admin/customers/${vendorId}/business-entry/${bookingId}`, { method: 'DELETE' });
     showToast('Entry deleted.', 'success');
-    ENTRIES_CACHE[vendorId] = await api(`/api/admin/customers/${vendorId}/business-entries`);
     await load();
   } catch (err) { showToast(err.message, 'error'); }
 }
