@@ -240,6 +240,9 @@
             <h2 style="margin:0"><i class="fas fa-users"></i> Vendors</h2>
             <span style="color:var(--text-2);font-size:0.82rem;flex:1">Active vendor accounts with their tier &amp; commission earned</span>
             <div style="display:flex;gap:8px">
+              <button type="button" class="btn btn-ghost" style="padding:8px 14px;font-size:0.82rem" onclick="downloadSampleExcel()" title="Blank template with example rows you can fill in and re-import">
+                <i class="fas fa-file-circle-plus"></i> Sample Excel
+              </button>
               <button type="button" class="btn btn-ghost" style="padding:8px 14px;font-size:0.82rem" onclick="exportVendorsExcel()">
                 <i class="fas fa-file-excel"></i> Export Excel
               </button>
@@ -683,6 +686,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="admin-customers.js?v=20260512k"></script>
+  <script src="admin-customers.js?v=20260512l"></script>
 </body>
 </html>

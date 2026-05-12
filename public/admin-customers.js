@@ -749,6 +749,70 @@ async function deleteBusinessEntry(vendorId, bookingId) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
+function downloadSampleExcel() {
+  if (typeof XLSX === 'undefined') {
+    showToast('Excel library failed to load — check your internet connection.', 'error');
+    return;
+  }
+  // Two example rows so admins can see both a fully-specified vendor and a
+  // minimal one. They can delete these, fill their own rows, and re-import.
+  const sample = [
+    {
+      'Owner Name':                  'Asha Patel',
+      'Email':                       'asha@example.com',
+      'Phone':                       '9876543210',
+      'Company / Organisation':      'Patel Events',
+      'Password (new vendors only)': 'TempPass@123',
+      'Initial Tier':                'Gold',
+      'POCs (semicolon-separated)':  'Asha Patel; Riya Patel',
+      'Status':                      '',
+      'Commission %':                '',
+      'Created':                     '',
+    },
+    {
+      'Owner Name':                  'Ravi Kumar',
+      'Email':                       'ravi@example.com',
+      'Phone':                       '',
+      'Company / Organisation':      'Kumar Productions',
+      'Password (new vendors only)': 'WelcomeRavi1',
+      'Initial Tier':                '',
+      'POCs (semicolon-separated)':  '',
+      'Status':                      '',
+      'Commission %':                '',
+      'Created':                     '',
+    },
+  ];
+  const ws = XLSX.utils.json_to_sheet(sample, { header: EXCEL_COLUMNS });
+  ws['!cols'] = [{ wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 26 }, { wch: 24 }, { wch: 14 }, { wch: 32 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
+
+  // Inline guide on a second sheet so admins know which fields matter.
+  const guide = [
+    ['Field', 'Required?', 'Notes'],
+    ['Owner Name', 'Yes', 'Full name of the vendor contact'],
+    ['Email', 'Yes', 'Must be unique. Used as login.'],
+    ['Phone', 'No', '10-digit mobile (or any free text)'],
+    ['Company / Organisation', 'Yes', 'Company name displayed in the admin'],
+    ['Password (new vendors only)', 'Yes', 'Min 6 chars. Vendor will be forced to change on first login.'],
+    ['Initial Tier', 'No', 'Bronze, Silver, Gold or Platinum. Leave blank for auto (Bronze).'],
+    ['POCs (semicolon-separated)', 'No', 'Multiple names separated by ";". Example: Asha; Riya'],
+    ['Status', '—', 'Read-only on export. Ignored on import.'],
+    ['Commission %', '—', 'Read-only on export. Ignored on import.'],
+    ['Created', '—', 'Read-only on export. Ignored on import.'],
+    ['', '', ''],
+    ['Behaviour', '', ''],
+    ['Existing email', '', 'Row is skipped — never overwrites an existing vendor.'],
+    ['Invalid row', '', 'Reported back as "Row N: <reason>" so you can fix the sheet.'],
+  ];
+  const wsGuide = XLSX.utils.aoa_to_sheet(guide);
+  wsGuide['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 60 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Vendors');
+  XLSX.utils.book_append_sheet(wb, wsGuide, 'Guide');
+  XLSX.writeFile(wb, 'vendors-sample-template.xlsx');
+  showToast('Sample template downloaded — fill it in and use "Import Excel".', 'success');
+}
+
 function exportVendorsExcel() {
   if (typeof XLSX === 'undefined') {
     showToast('Excel library failed to load — check your internet connection.', 'error');
