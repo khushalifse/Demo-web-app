@@ -462,7 +462,12 @@ router.post('/:id/business-entry', (req, res) => {
   if (!amount || amount <= 0)
     return res.status(400).json({ error: 'Net business amount must be greater than zero.' });
 
-  const date    = eventDate || new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0];
+  const date  = eventDate || today;
+  if (date < today)
+    return res.status(400).json({ error: 'Event start date cannot be in the past.' });
+  if (eventDateTo && eventDateTo < today)
+    return res.status(400).json({ error: 'Event end date cannot be in the past.' });
   const dateTo  = (eventDateTo && eventDateTo >= date) ? eventDateTo : null;
   const direct  = !!directByClient;
 

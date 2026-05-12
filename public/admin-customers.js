@@ -59,9 +59,17 @@ function populateLogBizVendorSelect() {
       return `<option value="${v.id}">${company}${escapeHtml(v.name)} — ${tierName} (${tierRate}%)</option>`;
     }).join('');
 
-  // Default the date to today.
+  // Default the date to today and block past dates — business entries are
+  // logged for upcoming or just-happened events; past-dating opens the door
+  // to backdated tier manipulation, which we don't want.
+  const today = new Date().toISOString().split('T')[0];
   const dateInput = document.getElementById('lb-date');
-  if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().split('T')[0];
+  if (dateInput) {
+    dateInput.min = today;
+    if (!dateInput.value) dateInput.value = today;
+  }
+  const endInput = document.getElementById('lb-endDate');
+  if (endInput) endInput.min = today;
   syncEndDateMin();
 }
 
@@ -113,13 +121,15 @@ function onLogBizVendorChange() {
   updateLogBizPreview();
 }
 
-// When the start date changes, force the end date to be on or after it.
+// When the start date changes, force the end date to be on or after it
+// (and never before today either, even if the start date somehow was).
 function syncEndDateMin() {
   const start = document.getElementById('lb-date').value;
   const endEl = document.getElementById('lb-endDate');
   if (!endEl) return;
-  endEl.min = start || '';
-  if (endEl.value && start && endEl.value < start) {
+  const today = new Date().toISOString().split('T')[0];
+  endEl.min = (start && start > today) ? start : today;
+  if (endEl.value && endEl.value < endEl.min) {
     // Wipe an end date that became invalid after the user changed the start.
     endEl.value = '';
   }
@@ -181,6 +191,9 @@ async function submitBusinessEntry(e) {
   if (!id)         { showToast('Please select a vendor.', 'error'); return; }
   if (amount <= 0) { showToast('Enter a net business amount greater than zero.', 'error'); return; }
   if (!date)       { showToast('Event start date is required.', 'error'); return; }
+  const today = new Date().toISOString().split('T')[0];
+  if (date < today)    { showToast('Event start date cannot be in the past.', 'error'); return; }
+  if (endDate && endDate < today) { showToast('Event end date cannot be in the past.', 'error'); return; }
   if (endDate && endDate < date) {
     showToast('End date can\'t be earlier than the start date. Please correct it.', 'error');
     return;
