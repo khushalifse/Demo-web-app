@@ -520,6 +520,9 @@ function render() {
         const mustChange = c.mustChangePassword
           ? '<span class="status-badge" style="background:var(--warning-bg);color:var(--warning);font-size:0.65rem;margin-left:6px" title="Vendor has not yet changed their initial password"><i class="fas fa-hourglass-half"></i> pending change</span>'
           : '';
+        const resetReq = c.passwordResetRequested
+          ? `<span class="status-badge" style="background:var(--danger-bg);color:var(--danger);font-size:0.65rem;margin-left:6px" title="Vendor requested a password reset on ${formatPayDate((c.passwordResetRequestedAt || '').slice(0,10))} — issue a new password from the key icon."><i class="fas fa-key"></i> reset requested</span>`
+          : '';
         const isExpanded = EXPANDED_VENDOR_ID === c.id;
         const caret = isExpanded ? '<i class="fas fa-chevron-up" style="font-size:0.65rem;margin-left:4px"></i>'
                                  : '<i class="fas fa-chevron-down" style="font-size:0.65rem;margin-left:4px"></i>';
@@ -527,7 +530,7 @@ function render() {
         return `
           <tr${isExpanded ? ' class="row-expanded"' : ''}>
             <td data-label="Name & Email">
-              <div class="client-name">${escapeHtml(c.name)} ${pwdBadge}${mustChange}</div>
+              <div class="client-name">${escapeHtml(c.name)} ${pwdBadge}${mustChange}${resetReq}</div>
               <div style="font-size:0.78rem;color:var(--text-2);margin-top:2px">${escapeHtml(c.email)}</div>
             </td>
             <td data-label="Company">${escapeHtml(c.companyName || '—')}</td>

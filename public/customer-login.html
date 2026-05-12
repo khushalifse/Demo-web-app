@@ -46,9 +46,37 @@
           <span class="btn-spinner" style="display:none"><i class="fas fa-circle-notch fa-spin"></i> Signing in…</span>
         </button>
 
-        <p class="auth-hint" style="margin-top:18px;font-size:12px;color:#94a3b8;text-align:center;line-height:1.6">
+        <p style="margin-top:14px;text-align:center">
+          <a href="#" id="forgotLink" style="font-size:13px;color:#fb923c;text-decoration:none">
+            <i class="fas fa-circle-question"></i> Forgot password?
+          </a>
+        </p>
+
+        <p class="auth-hint" style="margin-top:14px;font-size:12px;color:#94a3b8;text-align:center;line-height:1.6">
           <i class="fas fa-info-circle"></i> Accounts are created by your account manager.<br />
           If you don't have credentials yet, please contact us.
+        </p>
+      </form>
+
+      <!-- Forgot password form (hidden by default; replaces the sign-in form when shown) -->
+      <form id="forgotForm" class="auth-form" style="display:none" onsubmit="handleForgot(event)" novalidate>
+        <p style="font-size:13px;color:#cbd5e1;line-height:1.6;margin:0 0 16px">
+          Enter the email registered to your vendor account. We'll notify your
+          account manager — they'll issue a new password and share it with you
+          directly.
+        </p>
+        <div class="form-group">
+          <label for="f-email"><i class="fas fa-envelope"></i> Email</label>
+          <input type="email" id="f-email" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <button type="submit" class="btn-auth" id="forgotBtn">
+          <span class="btn-text"><i class="fas fa-paper-plane"></i> Request reset</span>
+          <span class="btn-spinner" style="display:none"><i class="fas fa-circle-notch fa-spin"></i> Sending…</span>
+        </button>
+        <p style="margin-top:14px;text-align:center">
+          <a href="#" id="backToLoginLink" style="font-size:13px;color:#94a3b8;text-decoration:none">
+            <i class="fas fa-arrow-left"></i> Back to sign in
+          </a>
         </p>
       </form>
     </div>
@@ -99,6 +127,49 @@
       const isHidden = inp.type === 'password';
       inp.type = isHidden ? 'text' : 'password';
       btn.querySelector('i').className = `fas fa-eye${isHidden ? '-slash' : ''}`;
+    }
+
+    // ── Forgot password flow ────────────────────────────────────────────────
+    document.getElementById('forgotLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('loginForm').style.display  = 'none';
+      document.getElementById('forgotForm').style.display = '';
+      // Carry over the email the user already typed, if any.
+      const typed = document.getElementById('l-email').value.trim();
+      if (typed) document.getElementById('f-email').value = typed;
+      hideAlert();
+    });
+    document.getElementById('backToLoginLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('forgotForm').style.display = 'none';
+      document.getElementById('loginForm').style.display  = '';
+      hideAlert();
+    });
+
+    async function handleForgot(e) {
+      e.preventDefault();
+      const btn   = document.getElementById('forgotBtn');
+      const email = document.getElementById('f-email').value.trim();
+      setLoading(btn, true); hideAlert();
+      try {
+        const res = await fetch('/api/customer-auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Request failed');
+        showAlert(data.message || 'Request received. Your account manager will share a new password shortly.', 'success');
+        // Bounce back to the sign-in form after a brief moment.
+        setTimeout(() => {
+          document.getElementById('forgotForm').style.display = 'none';
+          document.getElementById('loginForm').style.display  = '';
+          setLoading(btn, false);
+        }, 2500);
+      } catch (err) {
+        showAlert(err.message, 'error');
+        setLoading(btn, false);
+      }
     }
   </script>
 </body>

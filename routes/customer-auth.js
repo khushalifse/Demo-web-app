@@ -49,6 +49,27 @@ router.post('/logout', (req, res) => {
   res.json({ success: true });
 });
 
+// POST /api/customer-auth/forgot-password — vendor flags their account for a
+// password reset. Admin sees a badge on the Vendors page and issues a new
+// password from there. We always respond with success (even if the email
+// doesn't match a record) so the endpoint can't be used to enumerate accounts.
+router.post('/forgot-password', (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+  const customers = readCustomers();
+  const idx = customers.findIndex(c => (c.email || '').toLowerCase() === String(email).toLowerCase());
+  if (idx !== -1) {
+    customers[idx].passwordResetRequested   = true;
+    customers[idx].passwordResetRequestedAt = new Date().toISOString();
+    writeCustomers(customers);
+  }
+  res.json({
+    success: true,
+    message: 'If an account exists for that email, your account manager has been notified. They will share a new password with you shortly.',
+  });
+});
+
 // POST /api/customer-auth/change-password — vendor changes their own password.
 // Requires the current session, current password, and new password.
 router.post('/change-password', async (req, res) => {

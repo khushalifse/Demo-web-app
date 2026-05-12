@@ -382,8 +382,11 @@ router.post('/:id/reset-password', async (req, res) => {
   if (!password || String(password).length < 6)
     return res.status(400).json({ error: 'New password must be at least 6 characters.' });
 
-  customers[idx].password           = await bcrypt.hash(String(password), 12);
-  customers[idx].mustChangePassword = true;
+  customers[idx].password                 = await bcrypt.hash(String(password), 12);
+  customers[idx].mustChangePassword       = true;
+  // Clear any "forgot password" request now that we've issued a new one.
+  customers[idx].passwordResetRequested   = false;
+  customers[idx].passwordResetRequestedAt = null;
   writeCustomers(customers);
 
   res.json({
