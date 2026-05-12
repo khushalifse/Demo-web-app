@@ -584,9 +584,19 @@ function openBusinessEntries(vendorId) {
 function entriesRowHTML(vendorId) {
   const v = CUSTOMERS.find(c => c.id === vendorId);
   const list = (v && Array.isArray(v.entries)) ? v.entries : [];
+  // Diagnostic when the list is empty — distinguishes "server hasn't shipped
+  // the entries field yet" from "server shipped it but the filter matched 0".
   if (!list.length) {
+    const hasField = v && Object.prototype.hasOwnProperty.call(v, 'entries');
+    const bookingsCount = (v && v.bookingsCount) || 0;
+    const diag = !hasField
+      ? `Server response is missing the <code>entries</code> field — deploy probably still in progress.`
+      : `Server returned an empty <code>entries</code> array (bookingsCount=${bookingsCount}). Filter didn't match any bookings.`;
     return `<tr class="entries-row"><td colspan="8" class="entries-cell">
-      <div class="entries-wrap"><div class="empty-row">No entries logged yet for this vendor.</div></div>
+      <div class="entries-wrap">
+        <div class="empty-row">No entries to show.</div>
+        <div style="text-align:center;color:var(--text-3);font-size:0.75rem;margin-top:4px">${diag}</div>
+      </div>
     </td></tr>`;
   }
   const rows = list.map(e => {
