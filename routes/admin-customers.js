@@ -521,14 +521,24 @@ router.post('/:id/business-entry', (req, res) => {
 
 // GET /api/admin/customers/:id/business-entries
 // All bookings tied to this vendor (both loyalty-counting and direct-by-client),
-// chronological. Used by the admin "view & edit business entries" modal.
+// chronological. Used by the admin inline-entries panel under each vendor row.
+//
+// Bookings created through the admin "Log Business Entry" form use `customerId`
+// while older entries coming in via /api/admin/loyalty/manual-show use `vendorId`
+// — we accept either so legacy data still surfaces in this panel.
 router.get('/:id/business-entries', (req, res) => {
   const customers = readCustomers();
   const customer  = customers.find(c => c.id === req.params.id);
   if (!customer) return res.status(404).json({ error: 'Vendor not found.' });
 
-  const list = readBookings()
-    .filter(b => b.customerId === customer.id)
+  const allBookings = readBookings();
+  const matched = allBookings.filter(b =>
+    b.customerId === customer.id || b.vendorId === customer.id
+  );
+  console.log(`[business-entries] vendor=${customer.id} (${customer.email}) ` +
+              `total-bookings=${allBookings.length} matched=${matched.length}`);
+
+  const list = matched
     .sort((a, b) => new Date(b.eventDate) - new Date(a.eventDate))
     .map(b => ({
       id:             b.id,
