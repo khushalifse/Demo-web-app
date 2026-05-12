@@ -616,7 +616,56 @@
     </div>
   </div>
 
+  <!-- Edit Business Entry Modal -->
+  <div class="modal-overlay" id="editEntryModal" onclick="if(event.target.id==='editEntryModal') closeEditEntry()">
+    <div class="modal modal-small">
+      <div class="modal-header">
+        <h2><i class="fas fa-pen"></i> Edit Business Entry</h2>
+        <button class="modal-close" onclick="closeEditEntry()" aria-label="Close"><i class="fas fa-times"></i></button>
+      </div>
+      <form id="editEntryForm" onsubmit="submitEditEntry(event)" novalidate>
+        <input type="hidden" id="ee-vendorId" />
+        <input type="hidden" id="ee-bookingId" />
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Event Start Date *</label>
+              <input type="date" id="ee-date" required />
+            </div>
+            <div class="form-group">
+              <label>Event End Date <span style="color:var(--text-3);font-weight:400">(optional)</span></label>
+              <input type="date" id="ee-dateTo" />
+            </div>
+            <div class="form-group full">
+              <label>Net Business Amount (₹) <span style="color:var(--text-3);font-weight:400">(excl. GST)</span> *</label>
+              <input type="number" id="ee-amount" min="1" step="1" required />
+            </div>
+            <div class="form-group">
+              <label>Client Name</label>
+              <input type="text" id="ee-client" placeholder="End client of this event" />
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" id="ee-desc" placeholder="Event / description" />
+            </div>
+            <div class="form-group full">
+              <label>Direct booking by client?</label>
+              <select id="ee-direct">
+                <option value="no">No — counts toward vendor's loyalty &amp; commission</option>
+                <option value="yes">Yes — no commission, no tier impact</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeEditEntry()">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
-  <script src="admin-customers.js?v=20260512i"></script>
+  <script src="admin-customers.js?v=20260512j"></script>
 </body>
 </html>

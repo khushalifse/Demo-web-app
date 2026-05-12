@@ -584,19 +584,9 @@ function openBusinessEntries(vendorId) {
 function entriesRowHTML(vendorId) {
   const v = CUSTOMERS.find(c => c.id === vendorId);
   const list = (v && Array.isArray(v.entries)) ? v.entries : [];
-  // Diagnostic when the list is empty — distinguishes "server hasn't shipped
-  // the entries field yet" from "server shipped it but the filter matched 0".
   if (!list.length) {
-    const hasField = v && Object.prototype.hasOwnProperty.call(v, 'entries');
-    const bookingsCount = (v && v.bookingsCount) || 0;
-    const diag = !hasField
-      ? `Server response is missing the <code>entries</code> field — deploy probably still in progress.`
-      : `Server returned an empty <code>entries</code> array (bookingsCount=${bookingsCount}). Filter didn't match any bookings.`;
     return `<tr class="entries-row"><td colspan="8" class="entries-cell">
-      <div class="entries-wrap">
-        <div class="empty-row">No entries to show.</div>
-        <div style="text-align:center;color:var(--text-3);font-size:0.75rem;margin-top:4px">${diag}</div>
-      </div>
+      <div class="entries-wrap"><div class="empty-row">No entries logged yet for this vendor.</div></div>
     </td></tr>`;
   }
   const rows = list.map(e => {
@@ -604,16 +594,18 @@ function entriesRowHTML(vendorId) {
     const directBadge = e.directByClient
       ? '<span class="source-pill self">Direct</span>'
       : '<span style="color:var(--text-3)">—</span>';
-    const desc = (e.eventType || '') + (e.clientName ? ' · ' + e.clientName : '');
+    const client = e.clientName ? escapeHtml(e.clientName) : '<span style="color:var(--text-3)">—</span>';
+    const desc   = e.eventType  ? escapeHtml(e.eventType)  : '<span style="color:var(--text-3)">—</span>';
     return `
       <tr>
         <td>${escapeHtml(dateLabel)}</td>
-        <td>${escapeHtml(desc) || '—'}</td>
+        <td>${client}</td>
+        <td>${desc}</td>
         <td style="text-align:center">${directBadge}</td>
         <td style="text-align:right"><span class="price-text">${fmtINR(e.netAmount)}</span></td>
         <td>
           <div class="actions-cell" style="justify-content:center">
-            <button class="btn-icon edit" title="Edit amount" onclick="editBusinessEntry('${vendorId}', '${e.id}', ${e.netAmount})">
+            <button class="btn-icon edit" title="Edit entry" onclick="openEditEntry('${vendorId}', '${e.id}')">
               <i class="fas fa-pen"></i>
             </button>
             <button class="btn-icon delete" title="Delete entry" onclick="deleteBusinessEntry('${vendorId}', '${e.id}')">
@@ -630,7 +622,8 @@ function entriesRowHTML(vendorId) {
         <thead>
           <tr>
             <th>Date</th>
-            <th>Client / Description</th>
+            <th>Client</th>
+            <th>Description</th>
             <th style="text-align:center">Direct?</th>
             <th style="text-align:right">Amount (₹)</th>
             <th style="text-align:center">Actions</th>
@@ -642,20 +635,58 @@ function entriesRowHTML(vendorId) {
   </td></tr>`;
 }
 
-async function editBusinessEntry(vendorId, bookingId, currentAmount) {
-  const input = prompt('New business amount (₹, net of GST):', String(currentAmount));
-  if (input == null) return; // cancelled
-  const amount = Number(input);
+function openEditEntry(vendorId, bookingId) {
+  const v = CUSTOMERS.find(c => c.id === vendorId);
+  const e = v && v.entries && v.entries.find(x => x.id === bookingId);
+  if (!e) { showToast('Entry not found — try refreshing.', 'error'); return; }
+  document.getElementById('ee-vendorId').value  = vendorId;
+  document.getElementById('ee-bookingId').value = bookingId;
+  document.getElementById('ee-date').value      = e.eventDate || '';
+  document.getElementById('ee-dateTo').value    = e.eventDateTo || '';
+  document.getElementById('ee-amount').value    = e.netAmount || 0;
+  document.getElementById('ee-client').value    = e.clientName || '';
+  document.getElementById('ee-desc').value      = e.eventType || '';
+  document.getElementById('ee-direct').value    = e.directByClient ? 'yes' : 'no';
+  document.getElementById('editEntryModal').classList.add('open');
+}
+
+function closeEditEntry() {
+  document.getElementById('editEntryModal').classList.remove('open');
+}
+
+async function submitEditEntry(ev) {
+  ev.preventDefault();
+  const vendorId  = document.getElementById('ee-vendorId').value;
+  const bookingId = document.getElementById('ee-bookingId').value;
+  const amount    = Number(document.getElementById('ee-amount').value);
+  const date      = document.getElementById('ee-date').value;
+  const dateTo    = document.getElementById('ee-dateTo').value;
+  const client    = document.getElementById('ee-client').value.trim();
+  const desc      = document.getElementById('ee-desc').value.trim();
+  const direct    = document.getElementById('ee-direct').value === 'yes';
+
+  if (!date)            { showToast('Event start date is required.', 'error'); return; }
   if (!Number.isFinite(amount) || amount <= 0) {
-    showToast('Amount must be a number greater than zero.', 'error'); return;
+    showToast('Amount must be greater than zero.', 'error'); return;
+  }
+  if (dateTo && dateTo < date) {
+    showToast("End date can't be earlier than the start date.", 'error'); return;
   }
   try {
     await api(`/api/admin/customers/${vendorId}/business-entry/${bookingId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ netAmount: amount }),
+      body: JSON.stringify({
+        netAmount:      amount,
+        eventDate:      date,
+        eventDateTo:    dateTo || null,
+        clientName:     client,
+        description:    desc,
+        directByClient: direct,
+      }),
     });
     showToast('Entry updated. Commission recomputed.', 'success');
-    await load(); // reloads vendor list — entries embedded in the response
+    closeEditEntry();
+    await load();
   } catch (err) { showToast(err.message, 'error'); }
 }
 
