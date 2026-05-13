@@ -53,33 +53,28 @@ function floorCredit(overrideName, tiers) {
 // brackets — a single booking that crosses a tier boundary is split, not
 // charged at one flat rate.
 //
-// If `forcedTierName` is supplied, the admin has manually pinned this entry
-// to a specific tier — pay the full amount at that tier's rate (flat) and
-// skip the banded walk. Tier progression still uses the booking's amount,
-// just the commission calculation is locked.
+// If `forcedTierName` is supplied, the admin has pinned this entry's starting
+// tier (per-entry equivalent of the vendor's Initial Tier credit). The band
+// walk then runs from `forcedTier.threshold → forcedTier.threshold + amount`
+// instead of using the vendor's cumulative position, so a Bronze pin reads as
+// "₹10L @ 5% + ₹15L @ 7.5%" rather than the flat current-vendor-position rate.
 function computeBandedCommission(cumulativeBefore, amount, tiers, forcedTierName) {
   const sorted = [...tiers].sort((a, b) => Number(a.threshold) - Number(b.threshold));
 
+  let startPosition = cumulativeBefore;
   if (forcedTierName) {
     const forced = sorted.find(t => (t.name || '').toLowerCase() === String(forcedTierName).toLowerCase());
-    if (forced) {
-      const rate = Number(forced.discountPercent) || 0;
-      const commission = Math.round(amount * rate / 100);
-      return {
-        commission,
-        breakdown: [{ tier: forced.name, rate, amount, commission, forced: true }],
-      };
-    }
+    if (forced) startPosition = Number(forced.threshold) || 0;
   }
 
-  const cumulativeAfter = cumulativeBefore + amount;
+  const cumulativeAfter = startPosition + amount;
   let commission = 0;
   const breakdown = [];
   for (let i = 0; i < sorted.length; i++) {
     const t = sorted[i];
     const bandStart = Number(t.threshold) || 0;
     const bandEnd   = (i + 1 < sorted.length) ? (Number(sorted[i + 1].threshold) || 0) : Infinity;
-    const overlap   = Math.max(0, Math.min(bandEnd, cumulativeAfter) - Math.max(bandStart, cumulativeBefore));
+    const overlap   = Math.max(0, Math.min(bandEnd, cumulativeAfter) - Math.max(bandStart, startPosition));
     if (overlap > 0) {
       const seg = Math.round(overlap * (Number(t.discountPercent) || 0) / 100);
       commission += seg;

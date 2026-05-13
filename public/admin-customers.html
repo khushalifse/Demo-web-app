@@ -677,16 +677,16 @@
               </select>
             </div>
             <div class="form-group full">
-              <label>Commission tier <span style="color:var(--text-3);font-weight:400">(override only this entry)</span></label>
+              <label>Commission starting tier <span style="color:var(--text-3);font-weight:400">(override only this entry)</span></label>
               <select id="ee-tier">
-                <option value="">— Auto (banded across tier bands) —</option>
-                <option value="Bronze">Bronze (5%) — flat on the full amount</option>
-                <option value="Silver">Silver (7.5%) — flat on the full amount</option>
-                <option value="Gold">Gold (10%) — flat on the full amount</option>
-                <option value="Platinum">Platinum (15%) — flat on the full amount</option>
+                <option value="">— Auto (use vendor's running cumulative) —</option>
+                <option value="Bronze">Start from Bronze (₹0)</option>
+                <option value="Silver">Start from Silver (₹10,00,000)</option>
+                <option value="Gold">Start from Gold (₹25,00,000)</option>
+                <option value="Platinum">Start from Platinum (₹50,00,000)</option>
               </select>
               <span style="font-size:0.75rem;color:var(--text-3);margin-top:4px">
-                Only affects commission for this entry. Tier progression still uses the booking amount.
+                Banded math runs from this tier's threshold for this entry only. Vendor's overall tier progression isn't affected.
               </span>
             </div>
           </div>
@@ -700,6 +700,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="admin-customers.js?v=20260512s"></script>
+  <script src="admin-customers.js?v=20260512t"></script>
 </body>
 </html>

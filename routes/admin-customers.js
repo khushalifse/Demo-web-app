@@ -47,31 +47,27 @@ function floorCredit(overrideName, tiers) {
 }
 
 // Banded commission — see routes/customer.js for the full doc. If
-// `forcedTierName` is supplied (per-entry admin override) the full amount is
-// paid at that tier's rate, flat, with no banded walk.
+// `forcedTierName` is supplied, the band walk starts from that tier's
+// threshold instead of the vendor's running cumulative — effectively
+// re-positioning this single entry as if it were the first booking under
+// that tier's "umbrella".
 function computeBandedCommission(cumulativeBefore, amount, tiers, forcedTierName) {
   const sorted = [...tiers].sort((a, b) => Number(a.threshold) - Number(b.threshold));
 
+  let startPosition = cumulativeBefore;
   if (forcedTierName) {
     const forced = sorted.find(t => (t.name || '').toLowerCase() === String(forcedTierName).toLowerCase());
-    if (forced) {
-      const rate = Number(forced.discountPercent) || 0;
-      const commission = Math.round(amount * rate / 100);
-      return {
-        commission,
-        breakdown: [{ tier: forced.name, rate, amount, commission, forced: true }],
-      };
-    }
+    if (forced) startPosition = Number(forced.threshold) || 0;
   }
 
-  const cumulativeAfter = cumulativeBefore + amount;
+  const cumulativeAfter = startPosition + amount;
   let commission = 0;
   const breakdown = [];
   for (let i = 0; i < sorted.length; i++) {
     const t = sorted[i];
     const bandStart = Number(t.threshold) || 0;
     const bandEnd   = (i + 1 < sorted.length) ? (Number(sorted[i + 1].threshold) || 0) : Infinity;
-    const overlap   = Math.max(0, Math.min(bandEnd, cumulativeAfter) - Math.max(bandStart, cumulativeBefore));
+    const overlap   = Math.max(0, Math.min(bandEnd, cumulativeAfter) - Math.max(bandStart, startPosition));
     if (overlap > 0) {
       const seg = Math.round(overlap * (Number(t.discountPercent) || 0) / 100);
       commission += seg;
