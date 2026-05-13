@@ -408,6 +408,52 @@ router.post('/:id/reset-password', async (req, res) => {
   });
 });
 
+// POST /api/admin/customers/:id/send-whatsapp — send a free-text message to the
+// vendor's phone via the configured Twilio WhatsApp business number. Used by the
+// admin "Send via WhatsApp" button on the credentials card so the login details
+// can be delivered to the vendor without copy-pasting.
+router.post('/:id/send-whatsapp', async (req, res) => {
+  const customers = readCustomers();
+  const customer  = customers.find(c => c.id === req.params.id);
+  if (!customer) return res.status(404).json({ error: 'Vendor not found.' });
+
+  const { message } = req.body || {};
+  if (!message || !String(message).trim())
+    return res.status(400).json({ error: 'Message body is required.' });
+
+  const rawPhone = (customer.phone || '').trim();
+  if (!rawPhone) return res.status(400).json({ error: 'This vendor has no phone number on file.' });
+
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_WHATSAPP_NUMBER) {
+    return res.status(500).json({
+      error: 'Twilio is not configured on the server. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_NUMBER in .env.',
+    });
+  }
+
+  // Normalise phone → E.164. Plain 10-digit numbers are assumed Indian; admins
+  // can also enter +<countrycode> themselves for non-IN vendors.
+  const digits = rawPhone.replace(/[^\d]/g, '');
+  let e164;
+  if (rawPhone.startsWith('+'))      e164 = '+' + digits;
+  else if (digits.length === 10)     e164 = '+91' + digits;
+  else if (digits.length === 12 && digits.startsWith('91')) e164 = '+' + digits;
+  else return res.status(400).json({ error: `Can't dial "${rawPhone}" — use a 10-digit Indian number or +<countrycode><number>.` });
+
+  try {
+    const twilio = require('twilio');
+    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    const result = await client.messages.create({
+      from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
+      to:   `whatsapp:${e164}`,
+      body: String(message),
+    });
+    res.json({ success: true, sid: result.sid, to: e164 });
+  } catch (err) {
+    console.error('Twilio WhatsApp error:', err);
+    res.status(500).json({ error: err.message || 'Failed to send WhatsApp message.' });
+  }
+});
+
 // PATCH /api/admin/customers/:id/commission — set commission percent for a customer
 router.patch('/:id/commission', (req, res) => {
   const pct = Number(req.body && req.body.commissionPercent);

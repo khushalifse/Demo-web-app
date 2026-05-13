@@ -1158,6 +1158,12 @@ async function submitManual(e) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
+// Track which vendor's credentials are currently shown — the WhatsApp button
+// uses this to know which phone number to dial. Reset when the card is
+// re-populated (e.g. after creating another vendor).
+let CREDS_VENDOR_ID    = null;
+let CREDS_VENDOR_PHONE = null;
+
 function showCredentials(creds, customer) {
   const card = document.getElementById('credsCard');
   card.style.display = '';
@@ -1175,6 +1181,50 @@ function showCredentials(creds, customer) {
     `• Email: ${creds.email}\n` +
     `• Password: ${creds.password}\n\n` +
     `Sign in to track your bookings, loyalty tier and commission.`;
+
+  CREDS_VENDOR_ID    = customer.id;
+  CREDS_VENDOR_PHONE = customer.phone || null;
+  const waBtn = document.getElementById('credsWhatsappBtn');
+  if (waBtn) {
+    if (!CREDS_VENDOR_PHONE) {
+      waBtn.disabled = true;
+      waBtn.title    = 'Vendor has no phone number on file — edit the vendor and try again.';
+      waBtn.style.opacity = '0.55';
+      waBtn.style.cursor  = 'not-allowed';
+    } else {
+      waBtn.disabled = false;
+      waBtn.title    = `Send to ${CREDS_VENDOR_PHONE}`;
+      waBtn.style.opacity = '';
+      waBtn.style.cursor  = '';
+    }
+  }
+}
+
+async function sendCredsViaWhatsapp() {
+  if (!CREDS_VENDOR_ID) { showToast('No vendor selected — create or reset a vendor first.', 'error'); return; }
+  const message = document.getElementById('credsMessage').textContent || '';
+  if (!message.trim()) { showToast('Nothing to send — credentials message is empty.', 'error'); return; }
+
+  const ok = await customConfirm({
+    title:       'Send credentials via WhatsApp?',
+    message:     `This will message ${CREDS_VENDOR_PHONE || 'the vendor'} from your business WhatsApp number with the login details.`,
+    confirmText: 'Send now',
+  });
+  if (!ok) return;
+
+  const btn = document.getElementById('credsWhatsappBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await api(`/api/admin/customers/${CREDS_VENDOR_ID}/send-whatsapp`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
+    showToast(`WhatsApp sent to ${res.to || CREDS_VENDOR_PHONE}.`, 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function copyCreds(id) {

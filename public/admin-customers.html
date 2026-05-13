@@ -518,7 +518,12 @@
               </div>
               <div class="creds-row">
                 <code id="credsMessage"></code>
-                <button class="copy-btn" onclick="copyCreds('credsMessage')"><i class="fas fa-copy"></i> Copy Message</button>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <button class="copy-btn" onclick="copyCreds('credsMessage')"><i class="fas fa-copy"></i> Copy Message</button>
+                  <button class="copy-btn" id="credsWhatsappBtn" onclick="sendCredsViaWhatsapp()" style="background:#25d366;border-color:#25d366;color:#053b1c">
+                    <i class="fab fa-whatsapp"></i> Send via WhatsApp
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -700,6 +705,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="admin-customers.js?v=20260512u"></script>
+  <script src="admin-customers.js?v=20260512v"></script>
 </body>
 </html>
