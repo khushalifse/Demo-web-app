@@ -1701,7 +1701,7 @@ async function loyLoadVendors() {
     document.getElementById('lts-platinum').textContent = counts.Platinum;
 
     if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="6" class="loy-empty">No vendors yet. They sign up at <code>/vendor-login</code>.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" class="loy-empty">No vendors yet. They sign up at <code>/dj-login</code>.</td></tr>`;
       return;
     }
     tbody.innerHTML = rows.map(v => `

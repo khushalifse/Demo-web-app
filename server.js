@@ -160,13 +160,15 @@ function requireAuth(req, res, next) {
 function requireVendor(req, res, next) {
   if (req.session && req.session.vendor) return next();
   if (req.originalUrl.startsWith('/api')) return res.status(401).json({ error: 'Vendor authentication required.' });
-  res.redirect('/vendor-login');
+  // Legacy DJ-vendor system; the user's primary vendor portal is /vendor-login
+  // (the customer-based portal). This guard is for the older system.
+  res.redirect('/dj-login');
 }
 
 function requireCustomer(req, res, next) {
   if (req.session && req.session.customer) return next();
-  if (req.originalUrl.startsWith('/api')) return res.status(401).json({ error: 'Customer authentication required.' });
-  res.redirect('/customer-login');
+  if (req.originalUrl.startsWith('/api')) return res.status(401).json({ error: 'Vendor authentication required.' });
+  res.redirect('/vendor-login');
 }
 
 /* ── Auth routes (public) ──────────────────────────────────────────────────── */
@@ -192,13 +194,20 @@ app.get('/admin-login', (req, res) => {
 // Backward-compat: anything that still links to /login (old bookmarks,
 // hard-coded references) lands on the new admin sign-in URL.
 app.get('/login', (req, res) => res.redirect(301, '/admin-login'));
+// Primary vendor portal — used by every vendor account.
 app.get('/vendor-login', (req, res) => {
-  if (req.session && req.session.vendor) return res.redirect('/vendor-dashboard.html');
-  res.sendFile(path.join(__dirname, 'public', 'vendor-login.html'));
-});
-app.get('/customer-login', (req, res) => {
   if (req.session && req.session.customer) return res.redirect('/customer-dashboard.html');
   res.sendFile(path.join(__dirname, 'public', 'customer-login.html'));
+});
+// Old /customer-login URL kept as a 301 redirect so any external links /
+// bookmarks pointing at it still land in the right place.
+app.get('/customer-login', (req, res) => res.redirect(301, '/vendor-login'));
+
+// Legacy DJ-vendor system (older parallel login flow). Kept at /dj-login so
+// the /vendor-login URL is free for the main portal above.
+app.get('/dj-login', (req, res) => {
+  if (req.session && req.session.vendor) return res.redirect('/vendor-dashboard.html');
+  res.sendFile(path.join(__dirname, 'public', 'vendor-login.html'));
 });
 
 /* ── Vendor pages (vendor-only) ────────────────────────────────────────────── */
