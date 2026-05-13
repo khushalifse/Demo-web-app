@@ -154,7 +154,7 @@ app.use(session({
 function requireAuth(req, res, next) {
   if (req.session && req.session.user) return next();
   if (req.originalUrl.startsWith('/api')) return res.status(401).json({ error: 'Authentication required.' });
-  res.redirect('/login');
+  res.redirect('/admin-login');
 }
 
 function requireVendor(req, res, next) {
@@ -185,10 +185,13 @@ app.use('/api/customer',         requireCustomer, require('./routes/customer'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* ── Public auth pages ─────────────────────────────────────────────────────── */
-app.get('/login', (req, res) => {
+app.get('/admin-login', (req, res) => {
   if (req.session && req.session.user) return res.redirect('/');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
+// Backward-compat: anything that still links to /login (old bookmarks,
+// hard-coded references) lands on the new admin sign-in URL.
+app.get('/login', (req, res) => res.redirect(301, '/admin-login'));
 app.get('/vendor-login', (req, res) => {
   if (req.session && req.session.vendor) return res.redirect('/vendor-dashboard.html');
   res.sendFile(path.join(__dirname, 'public', 'vendor-login.html'));

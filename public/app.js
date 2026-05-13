@@ -32,7 +32,7 @@ async function api(method, path, body) {
   });
   if (res.status === 401) {
     // Session expired – redirect to login
-    location.href = '/login';
+    location.href = '/admin-login';
     return;
   }
   const data = await res.json();
@@ -45,14 +45,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* Auth guard – confirm we have a session */
   try {
     const me = await fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json());
-    if (!me.loggedIn) { location.href = '/login'; return; }
+    if (!me.loggedIn) { location.href = '/admin-login'; return; }
     document.getElementById('userName').textContent = me.user.name;
     if (me.user.picture) {
       document.getElementById('userAvatar').innerHTML =
         `<img src="${me.user.picture}" alt="avatar" style="width:30px;height:30px;border-radius:50%;object-fit:cover">`;
     }
   } catch {
-    location.href = '/login';
+    location.href = '/admin-login';
     return;
   }
 
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 /* ─── Logout ────────────────────────────────────────────────────────────── */
 async function logout() {
   await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-  location.href = '/login';
+  location.href = '/admin-login';
 }
 
 /* ─── Change Credentials ────────────────────────────────────────────────── */
