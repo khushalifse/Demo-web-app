@@ -47,42 +47,15 @@ function floorCredit(overrideName, tiers) {
   return ov ? (Number(ov.threshold) || 0) : 0;
 }
 
-// Commission rule:
-//  - Count how many tier-threshold lines the booking crosses (start < line < end).
-//  - 0 or 1 crossings → FLAT at the tier the booking ends in × full amount.
-//  - 2+ crossings → BANDED across the bands it touches (tax-bracket style).
-//
-// Rationale: small/medium bookings get paid at "where the vendor ended up",
-// while a single very-large booking that vaults the vendor through multiple
-// tiers in one go gets split so the higher tiers don't retro-apply to amounts
-// that historically belonged in lower tiers.
+// Banded commission: a booking spans the cumulative range [before, before+amount].
+// Each tier band [tier.threshold, nextTier.threshold) is hit for whatever portion
+// of the booking lies inside it, taxed at that tier's rate. Mirrors income-tax
+// brackets — a single booking that crosses a tier boundary is split, not
+// charged at one flat rate. Returns the rupee commission and the per-band
+// breakdown so the dashboard can show "₹25L @ 10% + ₹5L @ 15%".
 function computeBandedCommission(cumulativeBefore, amount, tiers) {
   const sorted = [...tiers].sort((a, b) => Number(a.threshold) - Number(b.threshold));
   const cumulativeAfter = cumulativeBefore + amount;
-
-  // Tier the booking ENDS in (= highest tier whose threshold ≤ cumulativeAfter).
-  let endTier = sorted[0];
-  for (const t of sorted) if (cumulativeAfter >= (Number(t.threshold) || 0)) endTier = t;
-
-  // Count boundary lines strictly between before and after. A booking that
-  // ends exactly on a tier line (e.g. Silver-floor + ₹15L lands on ₹25L)
-  // is treated as still in the lower band — no crossing.
-  let crossings = 0;
-  for (const t of sorted) {
-    const line = Number(t.threshold) || 0;
-    if (line > 0 && cumulativeBefore < line && cumulativeAfter > line) crossings++;
-  }
-
-  if (crossings < 2) {
-    const rate = Number(endTier.discountPercent) || 0;
-    const commission = Math.round(amount * rate / 100);
-    return {
-      commission,
-      breakdown: [{ tier: endTier.name, rate, amount, commission }],
-    };
-  }
-
-  // 2+ crossings — split into per-band slices.
   let commission = 0;
   const breakdown = [];
   for (let i = 0; i < sorted.length; i++) {

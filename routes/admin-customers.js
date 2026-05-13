@@ -46,34 +46,14 @@ function floorCredit(overrideName, tiers) {
   return ov ? (Number(ov.threshold) || 0) : 0;
 }
 
-// Commission rule:
-//  - Count how many tier-threshold lines the booking crosses (start < line < end).
-//  - 0 or 1 crossings → FLAT at the tier the booking ends in × full amount.
-//  - 2+ crossings → BANDED across the bands it touches (tax-bracket style).
-//
-// Mirrors the same helper in routes/customer.js — keep both in sync.
+// Banded commission — same idea as income-tax brackets. Each booking spans
+// [cumulativeBefore, cumulativeBefore + amount] of effective business; whatever
+// portion falls inside a tier band gets that tier's rate. A Gold-credit vendor
+// logging their first ₹30L booking gets ₹25L @ 10% + ₹5L @ 15%, not the full
+// ₹30L at the highest tier reached.
 function computeBandedCommission(cumulativeBefore, amount, tiers) {
   const sorted = [...tiers].sort((a, b) => Number(a.threshold) - Number(b.threshold));
   const cumulativeAfter = cumulativeBefore + amount;
-
-  let endTier = sorted[0];
-  for (const t of sorted) if (cumulativeAfter >= (Number(t.threshold) || 0)) endTier = t;
-
-  let crossings = 0;
-  for (const t of sorted) {
-    const line = Number(t.threshold) || 0;
-    if (line > 0 && cumulativeBefore < line && cumulativeAfter > line) crossings++;
-  }
-
-  if (crossings < 2) {
-    const rate = Number(endTier.discountPercent) || 0;
-    const commission = Math.round(amount * rate / 100);
-    return {
-      commission,
-      breakdown: [{ tier: endTier.name, rate, amount, commission }],
-    };
-  }
-
   let commission = 0;
   const breakdown = [];
   for (let i = 0; i < sorted.length; i++) {
