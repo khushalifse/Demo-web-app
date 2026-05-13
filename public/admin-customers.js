@@ -692,11 +692,14 @@ function entriesRowHTML(vendorId) {
       : '<span style="color:var(--text-3)">—</span>';
     const client = e.clientName ? escapeHtml(e.clientName) : '<span style="color:var(--text-3)">—</span>';
     const desc   = e.eventType  ? escapeHtml(e.eventType)  : '<span style="color:var(--text-3)">—</span>';
+    const tierTag = e.tierOverride
+      ? `<span class="status-badge" style="background:var(--accent-glow);color:var(--accent);font-size:0.65rem;margin-left:6px" title="Commission pinned to ${escapeHtml(e.tierOverride)} by admin"><i class="fas fa-thumbtack"></i> ${escapeHtml(e.tierOverride)}</span>`
+      : '';
     return `
       <tr>
         <td>${escapeHtml(dateLabel)}</td>
         <td>${client}</td>
-        <td>${desc}</td>
+        <td>${desc}${tierTag}</td>
         <td style="text-align:center">${directBadge}</td>
         <td style="text-align:right"><span class="price-text">${fmtINR(e.netAmount)}</span></td>
         <td>
@@ -743,6 +746,7 @@ function openEditEntry(vendorId, bookingId) {
   document.getElementById('ee-client').value    = e.clientName || '';
   document.getElementById('ee-desc').value      = e.eventType || '';
   document.getElementById('ee-direct').value    = e.directByClient ? 'yes' : 'no';
+  document.getElementById('ee-tier').value      = e.tierOverride || '';
   document.getElementById('editEntryModal').classList.add('open');
 }
 
@@ -760,6 +764,7 @@ async function submitEditEntry(ev) {
   const client    = document.getElementById('ee-client').value.trim();
   const desc      = document.getElementById('ee-desc').value.trim();
   const direct    = document.getElementById('ee-direct').value === 'yes';
+  const tier      = document.getElementById('ee-tier').value || null;
 
   if (!date)            { showToast('Event start date is required.', 'error'); return; }
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -778,6 +783,7 @@ async function submitEditEntry(ev) {
         clientName:     client,
         description:    desc,
         directByClient: direct,
+        tierOverride:   tier,
       }),
     });
     showToast('Entry updated. Commission recomputed.', 'success');

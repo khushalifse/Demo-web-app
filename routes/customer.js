@@ -51,10 +51,27 @@ function floorCredit(overrideName, tiers) {
 // Each tier band [tier.threshold, nextTier.threshold) is hit for whatever portion
 // of the booking lies inside it, taxed at that tier's rate. Mirrors income-tax
 // brackets — a single booking that crosses a tier boundary is split, not
-// charged at one flat rate. Returns the rupee commission and the per-band
-// breakdown so the dashboard can show "₹25L @ 10% + ₹5L @ 15%".
-function computeBandedCommission(cumulativeBefore, amount, tiers) {
+// charged at one flat rate.
+//
+// If `forcedTierName` is supplied, the admin has manually pinned this entry
+// to a specific tier — pay the full amount at that tier's rate (flat) and
+// skip the banded walk. Tier progression still uses the booking's amount,
+// just the commission calculation is locked.
+function computeBandedCommission(cumulativeBefore, amount, tiers, forcedTierName) {
   const sorted = [...tiers].sort((a, b) => Number(a.threshold) - Number(b.threshold));
+
+  if (forcedTierName) {
+    const forced = sorted.find(t => (t.name || '').toLowerCase() === String(forcedTierName).toLowerCase());
+    if (forced) {
+      const rate = Number(forced.discountPercent) || 0;
+      const commission = Math.round(amount * rate / 100);
+      return {
+        commission,
+        breakdown: [{ tier: forced.name, rate, amount, commission, forced: true }],
+      };
+    }
+  }
+
   const cumulativeAfter = cumulativeBefore + amount;
   let commission = 0;
   const breakdown = [];
@@ -172,7 +189,7 @@ router.get('/dashboard', (req, res) => {
 
     const { commission: earned, breakdown } = direct
       ? { commission: 0, breakdown: [] }
-      : computeBandedCommission(before, total, tiers);
+      : computeBandedCommission(before, total, tiers, b.tierOverride);
 
     // The tier shown in the table is the highest tier this booking REACHED
     // (= last band it hit). The "rate" column shows the effective blended rate

@@ -46,13 +46,24 @@ function floorCredit(overrideName, tiers) {
   return ov ? (Number(ov.threshold) || 0) : 0;
 }
 
-// Banded commission — same idea as income-tax brackets. Each booking spans
-// [cumulativeBefore, cumulativeBefore + amount] of effective business; whatever
-// portion falls inside a tier band gets that tier's rate. A Gold-credit vendor
-// logging their first ₹30L booking gets ₹25L @ 10% + ₹5L @ 15%, not the full
-// ₹30L at the highest tier reached.
-function computeBandedCommission(cumulativeBefore, amount, tiers) {
+// Banded commission — see routes/customer.js for the full doc. If
+// `forcedTierName` is supplied (per-entry admin override) the full amount is
+// paid at that tier's rate, flat, with no banded walk.
+function computeBandedCommission(cumulativeBefore, amount, tiers, forcedTierName) {
   const sorted = [...tiers].sort((a, b) => Number(a.threshold) - Number(b.threshold));
+
+  if (forcedTierName) {
+    const forced = sorted.find(t => (t.name || '').toLowerCase() === String(forcedTierName).toLowerCase());
+    if (forced) {
+      const rate = Number(forced.discountPercent) || 0;
+      const commission = Math.round(amount * rate / 100);
+      return {
+        commission,
+        breakdown: [{ tier: forced.name, rate, amount, commission, forced: true }],
+      };
+    }
+  }
+
   const cumulativeAfter = cumulativeBefore + amount;
   let commission = 0;
   const breakdown = [];
@@ -122,7 +133,7 @@ router.get('/', (req, res) => {
       const amt = effectiveBase(b);
       const before = running;
       running += amt;
-      total += computeBandedCommission(before, amt, tiers).commission;
+      total += computeBandedCommission(before, amt, tiers, b.tierOverride).commission;
     }
     return total;
   }
@@ -162,6 +173,7 @@ router.get('/', (req, res) => {
         netAmount:      Number(b.totalPrice) || 0,
         directByClient: !!b.directByClient,
         bookingStatus:  b.bookingStatus,
+        tierOverride:   b.tierOverride || null,
       }));
     return {
       ...safeCustomer(c),
@@ -637,7 +649,7 @@ router.patch('/:vendorId/business-entry/:bookingId', (req, res) => {
   if (idx === -1) return res.status(404).json({ error: 'Entry not found for this vendor.' });
 
   const b = bookings[idx];
-  const { netAmount, eventDate, eventDateTo, clientName, description, directByClient, poc } = req.body || {};
+  const { netAmount, eventDate, eventDateTo, clientName, description, directByClient, poc, tierOverride } = req.body || {};
 
   if (netAmount != null) {
     const n = Number(netAmount);
@@ -651,6 +663,17 @@ router.patch('/:vendorId/business-entry/:bookingId', (req, res) => {
   if (description != null) b.eventType   = String(description).trim() || 'Business Entry';
   if (directByClient !== undefined) b.directByClient = !!directByClient;
   if (poc !== undefined)  b.poc          = poc ? String(poc).trim() : null;
+  if (tierOverride !== undefined) {
+    // null / empty string means "back to auto (banded)". Anything else must
+    // match one of the configured tier names; otherwise reject.
+    if (!tierOverride) {
+      b.tierOverride = null;
+    } else {
+      const valid = store.readTiers().find(t => (t.name || '').toLowerCase() === String(tierOverride).toLowerCase());
+      if (!valid) return res.status(400).json({ error: `Unknown tier "${tierOverride}".` });
+      b.tierOverride = valid.name;
+    }
+  }
   b.updatedAt = new Date().toISOString();
 
   // Recompute this entry's commission with banded math. The booking spans
@@ -669,7 +692,7 @@ router.patch('/:vendorId/business-entry/:bookingId', (req, res) => {
   const amount = Number(b.totalPrice) || 0;
   const { commission: bandedAmount } = b.directByClient
     ? { commission: 0 }
-    : computeBandedCommission(runningBefore, amount, tiers);
+    : computeBandedCommission(runningBefore, amount, tiers, b.tierOverride);
   b.discountAmount  = b.directByClient ? 0 : bandedAmount;
   b.discountPercent = (b.directByClient || !amount) ? 0
     : Math.round((bandedAmount / amount) * 10000) / 100;
@@ -714,7 +737,7 @@ router.get('/:id/unpaid-events', (req, res) => {
     const total = effectiveBase(b);
     const before = running;
     running += total;
-    const { commission, breakdown } = computeBandedCommission(before, total, tiers);
+    const { commission, breakdown } = computeBandedCommission(before, total, tiers, b.tierOverride);
     const reachedTier = breakdown.length ? breakdown[breakdown.length - 1].tier : 'Bronze';
     const rate = total ? Math.round((commission / total) * 10000) / 100 : 0;
     return {

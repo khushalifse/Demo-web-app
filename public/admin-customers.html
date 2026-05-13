@@ -676,6 +676,19 @@
                 <option value="yes">Yes — no commission, no tier impact</option>
               </select>
             </div>
+            <div class="form-group full">
+              <label>Commission tier <span style="color:var(--text-3);font-weight:400">(override only this entry)</span></label>
+              <select id="ee-tier">
+                <option value="">— Auto (banded across tier bands) —</option>
+                <option value="Bronze">Bronze (5%) — flat on the full amount</option>
+                <option value="Silver">Silver (7.5%) — flat on the full amount</option>
+                <option value="Gold">Gold (10%) — flat on the full amount</option>
+                <option value="Platinum">Platinum (15%) — flat on the full amount</option>
+              </select>
+              <span style="font-size:0.75rem;color:var(--text-3);margin-top:4px">
+                Only affects commission for this entry. Tier progression still uses the booking amount.
+              </span>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -687,6 +700,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="admin-customers.js?v=20260512q"></script>
+  <script src="admin-customers.js?v=20260512s"></script>
 </body>
 </html>
