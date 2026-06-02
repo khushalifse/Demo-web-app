@@ -454,6 +454,115 @@ router.post('/:id/send-whatsapp', async (req, res) => {
   }
 });
 
+// GET /api/admin/customers/:id/dashboard — same payload as the vendor's own
+// /api/customer/dashboard, but addressable by ID so the admin can preview any
+// vendor's tier/commission view without impersonating their session.
+router.get('/:id/dashboard', (req, res) => {
+  const customers = readCustomers();
+  const me = customers.find(c => c.id === req.params.id);
+  if (!me) return res.status(404).json({ error: 'Vendor not found.' });
+
+  const all  = readBookings();
+  const mine = all.filter(b => b.customerId === me.id);
+  const active = mine.filter(b => b.bookingStatus !== 'Cancelled');
+  const loyaltyActive = active.filter(b => !b.directByClient);
+  const businessGross = loyaltyActive.reduce((s, b) => s + effectiveBase(b), 0);
+
+  const tiers          = store.readTiers();
+  const credit         = floorCredit(me.tierOverride, tiers);
+  const effectiveTotal = businessGross + credit;
+  const computedTier   = deriveTier(effectiveTotal, tiers);
+  const tier = computedTier
+    ? { name: computedTier.name, discountPercent: computedTier.discountPercent, threshold: computedTier.threshold }
+    : { name: 'Bronze', discountPercent: 5, threshold: 0 };
+
+  const sortedTiers  = [...tiers].sort((a, b) => a.threshold - b.threshold);
+  const currentT     = Number(tier.threshold) || 0;
+  const nextTierConf = sortedTiers.find(t => Number(t.threshold) > effectiveTotal) || null;
+  const nextTier = nextTierConf ? (() => {
+    const realRemaining = Math.max(0, Number(nextTierConf.threshold) - effectiveTotal);
+    const bandSize      = Math.max(1, Number(nextTierConf.threshold) - currentT);
+    const withinBand    = Math.max(0, effectiveTotal - currentT);
+    return {
+      name: nextTierConf.name,
+      threshold: nextTierConf.threshold,
+      remaining: realRemaining,
+      progressPercent: Math.min(100, Math.round((withinBand / bandSize) * 100)),
+      extraReversalRate: Math.max(0, (nextTierConf.discountPercent || 0) - (tier.discountPercent || 0)),
+    };
+  })() : null;
+
+  const nextRate = nextTierConf ? Number(nextTierConf.discountPercent) || 0 : Number(tier.discountPercent) || 0;
+  const chronological = [...active].sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate));
+
+  let running = credit;
+  const chrono = chronological.map(b => {
+    const total  = effectiveBase(b);
+    const direct = !!b.directByClient;
+    const before = running;
+    if (!direct) running += total;
+    const { commission: earned, breakdown } = direct
+      ? { commission: 0, breakdown: [] }
+      : computeBandedCommission(before, total, tiers, b.tierOverride);
+    const reachedTier = direct ? null
+      : (breakdown.length ? breakdown[breakdown.length - 1].tier : 'Bronze');
+    const effectiveRate = (direct || !total) ? 0 : Math.round((earned / total) * 10000) / 100;
+    const wouldEarnAtNext = direct ? 0 : Math.round(total * nextRate / 100);
+    return {
+      id: b.id, eventDate: b.eventDate, eventDateTo: b.eventDateTo || null,
+      eventType: b.eventType, venue: b.venue, clientName: b.clientName || '',
+      hostName: b.hostName || b.clientName, bookingStatus: b.bookingStatus,
+      directByClient: direct, total,
+      tierAtTime: direct ? '—' : reachedTier,
+      rate: effectiveRate, commissionEarned: earned,
+      commissionBreakdown: breakdown, wouldEarnAtNext,
+    };
+  });
+  const events = chrono.slice().sort((a, b) => new Date(b.eventDate) - new Date(a.eventDate));
+
+  const totalCommissionEarned = chrono.reduce((s, e) => s + e.commissionEarned, 0);
+  const wouldEarnAtNextTotal  = chrono.reduce((s, e) => s + e.wouldEarnAtNext, 0);
+  const upliftIfNext          = Math.max(0, wouldEarnAtNextTotal - totalCommissionEarned);
+
+  const startedAt = new Date(me.createdAt || Date.now());
+  const expiresAt = new Date(startedAt);
+  expiresAt.setMonth(expiresAt.getMonth() + 12);
+  const daysToExpiry = Math.ceil((expiresAt - new Date()) / (24 * 60 * 60 * 1000));
+
+  const payments = readPayments()
+    .filter(p => p.customerId === me.id)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .map(p => ({ id: p.id, amount: Number(p.amount) || 0, mode: p.mode, date: p.date, notes: p.notes || '' }));
+  const totalCommissionPaid   = payments.reduce((s, p) => s + p.amount, 0);
+  const commissionOutstanding = Math.max(0, totalCommissionEarned - totalCommissionPaid);
+
+  let earnedSoFar = 0;
+  for (const ev of chrono) {
+    if (ev.directByClient || !ev.commissionEarned) { ev.commissionStatus = 'na'; continue; }
+    const prev = earnedSoFar;
+    earnedSoFar += ev.commissionEarned;
+    if (earnedSoFar <= totalCommissionPaid)        ev.commissionStatus = 'paid';
+    else if (prev < totalCommissionPaid)           ev.commissionStatus = 'partial';
+    else                                            ev.commissionStatus = 'unpaid';
+  }
+
+  res.json({
+    customer: safeCustomer(me),
+    businessGross,
+    bookingsCount: mine.length,
+    confirmedCount: active.filter(b => b.bookingStatus === 'Confirmed' || b.bookingStatus === 'Completed').length,
+    tier, nextTier, tiers, events,
+    totalCommissionEarned, wouldEarnAtNextTotal, upliftIfNext,
+    payments, totalCommissionPaid, commissionOutstanding,
+    loyalty: {
+      startedAt: startedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      daysToExpiry,
+      expired:   daysToExpiry <= 0,
+    },
+  });
+});
+
 // POST /api/admin/customers/wipe-test-data — destructive admin tool that
 // resets every vendor-facing data file back to []. Kept here (rather than as
 // a CLI script) so the deployed Render instance can be wiped without SSH.

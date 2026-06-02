@@ -549,6 +549,9 @@ function render() {
             <td data-label="Commission Earned" style="text-align:right"><span class="price-text" style="color:var(--accent);font-weight:700">${fmtINR(c.commissionEarned || 0)}</span></td>
             <td data-label="Actions">
               <div class="actions-cell" style="justify-content:center">
+                <button class="btn-icon" title="View vendor's dashboard" onclick="window.open('/admin-vendor-view?id=${c.id}', '_blank')">
+                  <i class="fas fa-eye"></i>
+                </button>
                 <button class="btn-icon edit" title="Edit vendor" onclick="openEditVendor('${c.id}')">
                   <i class="fas fa-pen"></i>
                 </button>

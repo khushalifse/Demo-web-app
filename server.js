@@ -215,6 +215,14 @@ app.get('/vendor-dashboard.html', requireVendor, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'vendor-dashboard.html'));
 });
 
+/* ── Admin preview of a vendor's dashboard ────────────────────────────────── */
+// Same HTML file as the vendor's own dashboard, but gated by admin auth instead
+// of customer auth. customer-dashboard.js detects this URL and switches to the
+// admin endpoint + read-only UX.
+app.get('/admin-vendor-view', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'customer-dashboard.html'));
+});
+
 /* ── Customer pages (customer-only) ────────────────────────────────────────── */
 app.get('/customer-dashboard.html', requireCustomer, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'customer-dashboard.html'));

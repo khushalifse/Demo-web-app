@@ -14,11 +14,20 @@ async function api(path, opts = {}) {
 }
 
 let FORCE_PWD_CHANGE = false;
+// When the admin opens this page via /admin-vendor-view?id=XYZ we switch to
+// a read-only preview of the named vendor's dashboard. The vendor login flow
+// (customer-auth/me + change-password modal) is skipped entirely.
+const ADMIN_PREVIEW_VENDOR_ID = (() => {
+  if (location.pathname !== '/admin-vendor-view') return null;
+  const q = new URLSearchParams(location.search);
+  return q.get('id') || null;
+})();
 
 async function init() {
+  if (ADMIN_PREVIEW_VENDOR_ID) return initAdminPreview();
   try {
     const me = await fetch('/api/customer-auth/me', { credentials: 'same-origin' }).then(r => r.json());
-    if (!me.loggedIn) { location.href = '/customer-login'; return; }
+    if (!me.loggedIn) { location.href = '/vendor-login'; return; }
     const ownerName = (me.customer.name || '').trim();
     const company   = (me.customer.companyName || '').trim();
     document.getElementById('customerName').textContent = company || ownerName || 'Vendor';
@@ -34,6 +43,37 @@ async function init() {
       FORCE_PWD_CHANGE = true;
       openChangePassword(true);
     }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function initAdminPreview() {
+  // Fetch the vendor's profile so we can show their name in the header before
+  // the main dashboard load completes.
+  try {
+    const list = await api('/api/admin/customers');
+    const v = list.find(c => c.id === ADMIN_PREVIEW_VENDOR_ID);
+    if (!v) { showToast('Vendor not found in admin list.', 'error'); return; }
+    const ownerName = (v.name || '').trim();
+    const company   = (v.companyName || '').trim();
+    document.getElementById('customerName').textContent = company || ownerName || 'Vendor';
+    const greet = document.getElementById('greetName');
+    greet.textContent = (company ? `${company} · ${ownerName}` : ownerName) +
+                       ' — viewing as admin';
+
+    // Replace the vendor's logout button with a "Back to vendors" link.
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.innerHTML  = '<i class="fas fa-arrow-left"></i>';
+      logoutBtn.title      = 'Back to admin Vendors';
+      logoutBtn.onclick    = (e) => { e.preventDefault(); location.href = '/admin-customers.html'; };
+    }
+    // Admin can't change the vendor's password from this preview — hide that affordance.
+    const changePwdBtn = document.getElementById('changePwdBtn');
+    if (changePwdBtn) changePwdBtn.style.display = 'none';
+
+    await loadDashboard();
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -93,7 +133,11 @@ async function submitChangePassword(e) {
 }
 
 async function loadDashboard() {
-  const d = await api('/api/customer/dashboard');
+  // Admin preview hits the admin endpoint (no vendor session required).
+  const url = ADMIN_PREVIEW_VENDOR_ID
+    ? `/api/admin/customers/${ADMIN_PREVIEW_VENDOR_ID}/dashboard`
+    : '/api/customer/dashboard';
+  const d = await api(url);
 
   renderHero(d);
   renderValidity(d.loyalty);
