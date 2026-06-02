@@ -520,6 +520,9 @@
                 <code id="credsMessage"></code>
                 <div style="display:flex;flex-direction:column;gap:6px">
                   <button class="copy-btn" onclick="copyCreds('credsMessage')"><i class="fas fa-copy"></i> Copy Message</button>
+                  <button class="copy-btn" id="credsSmsBtn" onclick="sendCredsViaSms()" style="background:var(--info-bg);border-color:rgba(59,130,246,0.35);color:#93c5fd">
+                    <i class="fas fa-comment-sms"></i> Send via SMS
+                  </button>
                   <button class="copy-btn" id="credsWhatsappBtn" onclick="sendCredsViaWhatsapp()" style="background:#25d366;border-color:#25d366;color:#053b1c">
                     <i class="fab fa-whatsapp"></i> Send via WhatsApp
                   </button>
@@ -705,6 +708,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="admin-customers.js?v=20260512v"></script>
+  <script src="admin-customers.js?v=20260512w"></script>
 </body>
 </html>

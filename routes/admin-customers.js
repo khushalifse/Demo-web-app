@@ -454,6 +454,49 @@ router.post('/:id/send-whatsapp', async (req, res) => {
   }
 });
 
+// POST /api/admin/customers/:id/send-sms — send a free-text SMS to the vendor's
+// phone via the configured Twilio SMS-capable number. Same shape as send-whatsapp
+// but cheaper and friction-free (no opt-in / template approval needed).
+router.post('/:id/send-sms', async (req, res) => {
+  const customers = readCustomers();
+  const customer  = customers.find(c => c.id === req.params.id);
+  if (!customer) return res.status(404).json({ error: 'Vendor not found.' });
+
+  const { message } = req.body || {};
+  if (!message || !String(message).trim())
+    return res.status(400).json({ error: 'Message body is required.' });
+
+  const rawPhone = (customer.phone || '').trim();
+  if (!rawPhone) return res.status(400).json({ error: 'This vendor has no phone number on file.' });
+
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_SMS_NUMBER) {
+    return res.status(500).json({
+      error: 'Twilio SMS is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_SMS_NUMBER in your Render env vars.',
+    });
+  }
+
+  const digits = rawPhone.replace(/[^\d]/g, '');
+  let e164;
+  if (rawPhone.startsWith('+'))      e164 = '+' + digits;
+  else if (digits.length === 10)     e164 = '+91' + digits;
+  else if (digits.length === 12 && digits.startsWith('91')) e164 = '+' + digits;
+  else return res.status(400).json({ error: `Can't dial "${rawPhone}" — use a 10-digit Indian number or +<countrycode><number>.` });
+
+  try {
+    const twilio = require('twilio');
+    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    const result = await client.messages.create({
+      from: process.env.TWILIO_SMS_NUMBER,
+      to:   e164,
+      body: String(message),
+    });
+    res.json({ success: true, sid: result.sid, to: e164 });
+  } catch (err) {
+    console.error('Twilio SMS error:', err);
+    res.status(500).json({ error: err.message || 'Failed to send SMS.' });
+  }
+});
+
 // PATCH /api/admin/customers/:id/commission — set commission percent for a customer
 router.patch('/:id/commission', (req, res) => {
   const pct = Number(req.body && req.body.commissionPercent);

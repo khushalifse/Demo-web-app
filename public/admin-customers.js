@@ -1184,19 +1184,49 @@ function showCredentials(creds, customer) {
 
   CREDS_VENDOR_ID    = customer.id;
   CREDS_VENDOR_PHONE = customer.phone || null;
-  const waBtn = document.getElementById('credsWhatsappBtn');
-  if (waBtn) {
+  // Both the SMS and WhatsApp buttons need to know whether we have a phone on
+  // file. Disable both with a tooltip explaining why when we don't.
+  ['credsSmsBtn', 'credsWhatsappBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
     if (!CREDS_VENDOR_PHONE) {
-      waBtn.disabled = true;
-      waBtn.title    = 'Vendor has no phone number on file — edit the vendor and try again.';
-      waBtn.style.opacity = '0.55';
-      waBtn.style.cursor  = 'not-allowed';
+      btn.disabled = true;
+      btn.title    = 'Vendor has no phone number on file — edit the vendor and try again.';
+      btn.style.opacity = '0.55';
+      btn.style.cursor  = 'not-allowed';
     } else {
-      waBtn.disabled = false;
-      waBtn.title    = `Send to ${CREDS_VENDOR_PHONE}`;
-      waBtn.style.opacity = '';
-      waBtn.style.cursor  = '';
+      btn.disabled = false;
+      btn.title    = `Send to ${CREDS_VENDOR_PHONE}`;
+      btn.style.opacity = '';
+      btn.style.cursor  = '';
     }
+  });
+}
+
+async function sendCredsViaSms() {
+  if (!CREDS_VENDOR_ID) { showToast('No vendor selected — create or reset a vendor first.', 'error'); return; }
+  const message = document.getElementById('credsMessage').textContent || '';
+  if (!message.trim()) { showToast('Nothing to send — credentials message is empty.', 'error'); return; }
+
+  const ok = await customConfirm({
+    title:       'Send credentials via SMS?',
+    message:     `This will text ${CREDS_VENDOR_PHONE || 'the vendor'} the login details from your Twilio SMS number.`,
+    confirmText: 'Send SMS',
+  });
+  if (!ok) return;
+
+  const btn = document.getElementById('credsSmsBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await api(`/api/admin/customers/${CREDS_VENDOR_ID}/send-sms`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
+    showToast(`SMS sent to ${res.to || CREDS_VENDOR_PHONE}.`, 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
