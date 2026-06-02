@@ -454,6 +454,39 @@ router.post('/:id/send-whatsapp', async (req, res) => {
   }
 });
 
+// POST /api/admin/customers/wipe-test-data — destructive admin tool that
+// resets every vendor-facing data file back to []. Kept here (rather than as
+// a CLI script) so the deployed Render instance can be wiped without SSH.
+// users.json (super admin) and loyalty-tiers.json (the tier ladder config)
+// are intentionally left alone.
+router.post('/wipe-test-data', (req, res) => {
+  const dataDir = path.join(__dirname, '..', 'data');
+  const targets = [
+    'bookings.json',
+    'customers.json',
+    'commission-payments.json',
+    'manual-show-entries.json',
+    'tier-override-audit.json',
+    'vendor-loyalty-status.json',
+    'vendors.json',
+  ];
+  const removed = {};
+  let totalRows = 0;
+  for (const file of targets) {
+    const p = path.join(dataDir, file);
+    let before = 0;
+    try {
+      const list = JSON.parse(fs.readFileSync(p, 'utf8'));
+      before = Array.isArray(list) ? list.length : 0;
+    } catch { before = 0; }
+    fs.writeFileSync(p, '[]\n', 'utf8');
+    removed[file] = before;
+    totalRows += before;
+  }
+  console.log(`[wipe-test-data] cleared ${totalRows} rows across ${targets.length} files`);
+  res.json({ success: true, totalRows, removed });
+});
+
 // POST /api/admin/customers/:id/send-sms — send a free-text SMS to the vendor's
 // phone via the configured Twilio SMS-capable number. Same shape as send-whatsapp
 // but cheaper and friction-free (no opt-in / template approval needed).

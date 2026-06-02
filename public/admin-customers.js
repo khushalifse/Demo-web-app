@@ -807,6 +807,25 @@ async function deleteBusinessEntry(vendorId, bookingId) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
+async function wipeTestData() {
+  const ok = await customConfirm({
+    title:       'Wipe ALL vendors and bookings?',
+    message:     'This permanently deletes every vendor account, every business entry, every commission payment, and every loyalty record. Your super-admin login and the tier ladder are kept. This cannot be undone.',
+    confirmText: 'Yes, wipe everything',
+    danger:      true,
+  });
+  if (!ok) return;
+  try {
+    const res = await api('/api/admin/customers/wipe-test-data', { method: 'POST' });
+    const parts = Object.entries(res.removed || {})
+      .filter(([, n]) => n > 0)
+      .map(([file, n]) => `${file.replace('.json', '')}: ${n}`)
+      .join(' · ');
+    showToast(parts ? `Cleared ${res.totalRows} rows · ${parts}` : 'Already empty — nothing to clear.', 'success');
+    await load();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
 function downloadSampleExcel() {
   if (typeof XLSX === 'undefined') {
     showToast('Excel library failed to load — check your internet connection.', 'error');

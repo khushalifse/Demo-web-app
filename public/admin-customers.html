@@ -250,6 +250,9 @@
                 <i class="fas fa-file-import"></i> Import Excel
               </button>
               <input type="file" id="importVendorsFile" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" style="display:none" onchange="importVendorsExcel(event)" />
+              <button type="button" class="btn btn-ghost" style="padding:8px 14px;font-size:0.82rem;color:var(--danger);border-color:rgba(239,68,68,0.35)" onclick="wipeTestData()" title="Delete all vendors, bookings and commission records. Keeps super-admin and tier ladder.">
+                <i class="fas fa-eraser"></i> Wipe Test Data
+              </button>
             </div>
           </div>
           <div class="table-wrapper">
@@ -708,6 +711,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="admin-customers.js?v=20260512w"></script>
+  <script src="admin-customers.js?v=20260512x"></script>
 </body>
 </html>
