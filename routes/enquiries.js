@@ -23,23 +23,31 @@ router.get('/', (req, res) => {
   res.json(list);
 });
 
-// POST /api/admin/enquiries — capture a new enquiry. Every field is optional,
-// but we accept the record and let the admin fill in missing details later.
+// POST /api/admin/enquiries — capture a new enquiry. Name, event date and
+// at least one contact (email OR phone) are required; the rest is optional.
 router.post('/', (req, res) => {
   const { name, email, phone, eventStartDate, eventEndDate, notes } = req.body || {};
   const trim = (v) => (v == null ? '' : String(v).trim());
 
-  const startDate = trim(eventStartDate) || null;
-  const endDate   = trim(eventEndDate)   || null;
+  const cleanName  = trim(name);
+  const cleanEmail = trim(email);
+  const cleanPhone = trim(phone);
+  const startDate  = trim(eventStartDate) || null;
+  const endDate    = trim(eventEndDate)   || null;
+
+  if (!cleanName)    return res.status(400).json({ error: 'Name is required.' });
+  if (!cleanEmail && !cleanPhone)
+    return res.status(400).json({ error: 'Enter an email or a phone number.' });
+  if (!startDate)    return res.status(400).json({ error: 'Event date is required.' });
   if (startDate && endDate && endDate < startDate) {
     return res.status(400).json({ error: 'Event end date cannot be earlier than the start date.' });
   }
 
   const entry = {
     id:              uuidv4(),
-    name:            trim(name)  || null,
-    email:           trim(email) || null,
-    phone:           trim(phone) || null,
+    name:            cleanName,
+    email:           cleanEmail || null,
+    phone:           cleanPhone || null,
     eventStartDate:  startDate,
     eventEndDate:    endDate,
     notes:           trim(notes) || null,
@@ -56,10 +64,16 @@ router.post('/', (req, res) => {
 router.delete('/:id', (req, res) => {
   const list = readEnquiries();
   const idx  = list.findIndex(e => e.id === req.params.id);
+  console.log(`[enquiries DELETE] id=${req.params.id} idx=${idx} total=${list.length}`);
   if (idx === -1) return res.status(404).json({ error: 'Enquiry not found.' });
-  list.splice(idx, 1);
-  writeEnquiries(list);
-  res.json({ success: true });
+  try {
+    list.splice(idx, 1);
+    writeEnquiries(list);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[enquiries DELETE] write failed:', err);
+    res.status(500).json({ error: 'Could not save the change to disk: ' + err.message });
+  }
 });
 
 module.exports = router;

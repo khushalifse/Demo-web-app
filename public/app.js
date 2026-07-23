@@ -35,8 +35,14 @@ async function api(method, path, body) {
     location.href = '/admin-login';
     return;
   }
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  // Not every response is guaranteed to be JSON (server errors sometimes
+  // return HTML). Try JSON first, fall back to raw text so the toast can
+  // surface something readable instead of "Unexpected token '<'".
+  const text = await res.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; }
+  catch { data = { error: `${res.status} ${res.statusText || ''} — ${text.slice(0, 120)}` }; }
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
 }
 
@@ -1967,8 +1973,15 @@ async function submitEnquiry(ev) {
     eventEndDate:   null,
     notes:          document.getElementById('enq-notes').value.trim(),
   };
+  if (!payload.name)   { showToast('Please enter the lead\'s name.', 'error'); return; }
+  if (!payload.email && !payload.phone) {
+    showToast('Enter an email or a phone number so you can reach the lead.', 'error'); return;
+  }
+  if (!payload.eventStartDate) {
+    showToast('Please pick an event date.', 'error'); return;
+  }
   const today = new Date().toISOString().split('T')[0];
-  if (payload.eventStartDate && payload.eventStartDate < today) {
+  if (payload.eventStartDate < today) {
     showToast('Event date cannot be in the past.', 'error'); return;
   }
   try {
