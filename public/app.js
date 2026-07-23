@@ -2045,7 +2045,10 @@ function renderEnquiryCalendar() {
   const dayNamesHtml = names.map(n => `<div class="cal-day-name">${n}</div>`).join('');
 
   let cells = '';
-  for (let i = 0; i < firstDOW; i++) cells += '<div class="cal-day empty"></div>';
+  // Empty leading cells also get the .enq-day class so they inherit the same
+  // fixed height. Without it they'd fall back to the default aspect-ratio: 1
+  // (square) and stretch the first row much taller than the rest.
+  for (let i = 0; i < firstDOW; i++) cells += '<div class="cal-day enq-day empty"></div>';
   for (let d = 1; d <= daysInMonth; d++) {
     const iso = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const count = enqCountOnDate(iso);
