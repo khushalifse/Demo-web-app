@@ -1953,13 +1953,17 @@ async function loadEnquiries() {
 
 function openEnquiryModal() {
   document.getElementById('enquiryForm').reset();
-  // Event date must be tomorrow or later — the enquiry is for a *future*
-  // event, not today, so today's date should be greyed out in the picker.
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const minIso = tomorrow.toISOString().split('T')[0];
   const startEl = document.getElementById('enq-start');
-  if (startEl) startEl.min = minIso;
+  if (startEl) {
+    // Reset to text so the "Pick an event date" placeholder shows again
+    // (the input flips back to type=date the moment the admin focuses it).
+    startEl.type = 'text';
+    startEl.value = '';
+    startEl.min   = minIso;
+  }
   document.getElementById('enquiryModal').classList.add('open');
 }
 function closeEnquiryModal() {
