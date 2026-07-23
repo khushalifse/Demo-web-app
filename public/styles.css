@@ -1412,25 +1412,30 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   .enq-cal-wrap .cal-day-name { font-size: 0.52rem; padding: 5px 1px; }
 }
 
-/* Enquiries list table: tighter, evenly-aligned columns. */
-.enq-table th,
-.enq-table td {
-  vertical-align: middle;
-  white-space: nowrap;
-}
-.enq-table td:nth-child(3), /* Email  */
-.enq-table td:nth-child(6)  /* Notes  */ {
-  white-space: normal;
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.enq-table .actions-cell,
-.enq-table td:last-child {
-  text-align: center;
-}
-.enq-table .btn-icon {
-  margin: 0 auto;
+/* Enquiries list table: tighter, evenly-aligned columns. Desktop only —
+   on mobile the whole table transforms into stacked cards, so we don't want
+   the desktop column constraints (esp. max-width on email/notes) carrying
+   over and shrinking rows to a fraction of the card width. */
+@media (min-width: 769px) {
+  .enq-table th,
+  .enq-table td {
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .enq-table td:nth-child(3), /* Email  */
+  .enq-table td:nth-child(6)  /* Notes  */ {
+    white-space: normal;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .enq-table .actions-cell,
+  .enq-table td:last-child {
+    text-align: center;
+  }
+  .enq-table .btn-icon {
+    margin: 0 auto;
+  }
 }
 
 @media (max-width: 768px) {
