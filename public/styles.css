@@ -554,7 +554,9 @@ body.nav-open .nav-backdrop { display: block; }
 .form-group select:focus,
 .form-group textarea:focus { border-color: var(--accent); outline: none; }
 
-/* ── Calendar picker icon — white on dark ── */
+/* ── Date/time inputs — dark-theme rendering ── */
+/* The calendar-picker icon needs to be inverted so it stays visible on our
+   dark backgrounds. */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(0.7);
@@ -563,6 +565,35 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 input[type="date"]::-webkit-calendar-picker-indicator:hover,
 input[type="time"]::-webkit-calendar-picker-indicator:hover {
   filter: invert(1) opacity(1);
+}
+
+/* The "dd-mm-yyyy" placeholder text inside empty date inputs is browser-
+   drawn via these pseudo-elements — we set colour + font-family explicitly
+   so it's visible on dark surface-2 and matches the rest of the form. */
+input[type="date"],
+input[type="time"] {
+  color: var(--text);
+  font-family: inherit;
+}
+input[type="date"]:invalid,
+input[type="date"]:not(:focus):placeholder-shown {
+  color: var(--text-3);
+}
+input[type="date"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+/* When the field is EMPTY (no value picked), Chrome shows a placeholder
+   pattern in these pseudo-elements — dim them but keep them readable. */
+input[type="date"]:not([value]):not(:focus)::-webkit-datetime-edit,
+input[type="date"][value=""]:not(:focus)::-webkit-datetime-edit {
+  color: var(--text-3);
 }
 
 
