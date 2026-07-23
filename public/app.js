@@ -1953,10 +1953,13 @@ async function loadEnquiries() {
 
 function openEnquiryModal() {
   document.getElementById('enquiryForm').reset();
-  // Lock the event date picker to today+.
-  const today = new Date().toISOString().split('T')[0];
+  // Event date must be tomorrow or later — the enquiry is for a *future*
+  // event, not today, so today's date should be greyed out in the picker.
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minIso = tomorrow.toISOString().split('T')[0];
   const startEl = document.getElementById('enq-start');
-  if (startEl) startEl.min = today;
+  if (startEl) startEl.min = minIso;
   document.getElementById('enquiryModal').classList.add('open');
 }
 function closeEnquiryModal() {
@@ -1980,9 +1983,11 @@ async function submitEnquiry(ev) {
   if (!payload.eventStartDate) {
     showToast('Please pick an event date.', 'error'); return;
   }
-  const today = new Date().toISOString().split('T')[0];
-  if (payload.eventStartDate < today) {
-    showToast('Event date cannot be in the past.', 'error'); return;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minIso = tomorrow.toISOString().split('T')[0];
+  if (payload.eventStartDate < minIso) {
+    showToast('Event date must be tomorrow or later.', 'error'); return;
   }
   try {
     await api('POST', '/api/admin/enquiries', payload);
