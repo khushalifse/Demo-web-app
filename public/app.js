@@ -1926,7 +1926,7 @@ let ENQ_SELECTED_DATE = null; // YYYY-MM-DD string when a day is clicked
 
 async function loadEnquiries() {
   try {
-    ENQUIRIES = await api('/api/admin/enquiries');
+    ENQUIRIES = await api('GET', '/api/admin/enquiries');
     renderEnquiryCalendar();
     renderEnquiryList();
     document.getElementById('enq-total-badge').textContent =
@@ -1938,10 +1938,26 @@ async function loadEnquiries() {
 
 function openEnquiryModal() {
   document.getElementById('enquiryForm').reset();
+  // Lock start/end pickers to today+; end can't go earlier than start.
+  const today = new Date().toISOString().split('T')[0];
+  const startEl = document.getElementById('enq-start');
+  const endEl   = document.getElementById('enq-end');
+  if (startEl) startEl.min = today;
+  if (endEl)   endEl.min   = today;
   document.getElementById('enquiryModal').classList.add('open');
 }
 function closeEnquiryModal() {
   document.getElementById('enquiryModal').classList.remove('open');
+}
+
+// Called by the Start Date onchange — tighten End Date's floor.
+function enqSyncEndDateMin() {
+  const start = document.getElementById('enq-start').value;
+  const endEl = document.getElementById('enq-end');
+  const today = new Date().toISOString().split('T')[0];
+  const floor = (start && start > today) ? start : today;
+  endEl.min = floor;
+  if (endEl.value && endEl.value < floor) endEl.value = '';
 }
 
 async function submitEnquiry(ev) {
@@ -1954,13 +1970,16 @@ async function submitEnquiry(ev) {
     eventEndDate:   document.getElementById('enq-end').value   || null,
     notes:          document.getElementById('enq-notes').value.trim(),
   };
+  const today = new Date().toISOString().split('T')[0];
+  if (payload.eventStartDate && payload.eventStartDate < today) {
+    showToast('Event start date cannot be in the past.', 'error'); return;
+  }
   if (payload.eventEndDate && payload.eventStartDate &&
       payload.eventEndDate < payload.eventStartDate) {
-    showToast("End date can't be earlier than start date.", 'error');
-    return;
+    showToast("End date can't be earlier than start date.", 'error'); return;
   }
   try {
-    await api('/api/admin/enquiries', { method: 'POST', body: JSON.stringify(payload) });
+    await api('POST', '/api/admin/enquiries', payload);
     showToast('Enquiry saved.', 'success');
     closeEnquiryModal();
     await loadEnquiries();
@@ -1970,7 +1989,7 @@ async function submitEnquiry(ev) {
 async function deleteEnquiry(id) {
   if (!confirm('Delete this enquiry? This cannot be undone.')) return;
   try {
-    await api(`/api/admin/enquiries/${id}`, { method: 'DELETE' });
+    await api('DELETE', `/api/admin/enquiries/${id}`);
     showToast('Enquiry removed.', 'success');
     await loadEnquiries();
   } catch (err) { showToast(err.message, 'error'); }

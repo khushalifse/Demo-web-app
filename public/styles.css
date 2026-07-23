@@ -502,6 +502,7 @@ body.vendor-portal .logo-aj-img {
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
+.form-group.full { grid-column: 1 / -1; }
 
 .form-group { display: flex; flex-direction: column; gap: 5px; }
 .form-group.center-label { align-items: flex-start; gap: 10px; }
