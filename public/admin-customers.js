@@ -700,11 +700,11 @@ function entriesRowHTML(vendorId) {
       : '';
     return `
       <tr>
-        <td>${escapeHtml(dateLabel)}</td>
-        <td>${client}</td>
-        <td>${desc}${tierTag}</td>
-        <td style="text-align:center">${directBadge}</td>
-        <td style="text-align:right"><span class="price-text">${fmtINR(e.netAmount)}</span></td>
+        <td data-label="Date">${escapeHtml(dateLabel)}</td>
+        <td data-label="Client">${client}</td>
+        <td data-label="Description">${desc}${tierTag}</td>
+        <td data-label="Direct?" style="text-align:center">${directBadge}</td>
+        <td data-label="Amount" style="text-align:right"><span class="price-text">${fmtINR(e.netAmount)}</span></td>
         <td>
           <div class="actions-cell" style="justify-content:center">
             <button class="btn-icon edit" title="Edit entry" onclick="openEditEntry('${vendorId}', '${e.id}')">
