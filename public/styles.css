@@ -867,9 +867,17 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     flex: 1 1 auto;
     justify-content: center;
   }
-  /* Card header: stack title and subtitle on small screens */
-  .card-header { flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 16px; }
-  .card-header h2 { font-size: 0.92rem; }
+  /* Card header on mobile: wrap items on the row rather than column-stack —
+     so a title + count badge sit next to each other when they fit, and only
+     wrap onto a new line when they don't. */
+  .card-header {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 14px 16px;
+  }
+  .card-header h2 { font-size: 0.92rem; margin: 0; }
+  .card-header > span { font-size: 0.78rem; }
   .main { padding: 14px 12px 24px; }
 
   /* ── Tables → polished stacked cards on mobile ────────────────────────── */
