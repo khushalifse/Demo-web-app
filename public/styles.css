@@ -1322,6 +1322,37 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
 }
 
+/* Enquiries table on mobile — override the shared "first cell = card
+   header" treatment. Every cell (including the enquiry date) should keep
+   its label prefix, otherwise the bare "23 Jul 2026" at the top of the
+   card gets confused with the event date below it. */
+@media (max-width: 768px) {
+  .enq-table tr td:first-child {
+    background: transparent;
+    padding: 11px 16px !important;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right !important;
+    font-size: 0.88rem;
+    font-weight: normal;
+  }
+  .enq-table tr td:first-child::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    text-align: left;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  /* Add a subtle accent strip inside the card so it still has a visual
+     hook without depending on the first-cell header treatment. */
+  .enq-table tr { border-left-color: var(--accent); }
+}
+
 /* ── Enquiry mini-calendar ── */
 /* The main Availability calendar takes the full card width with big square
    cells. For the Enquire tab we want a compact overview — max 520px wide,

@@ -2128,7 +2128,7 @@ function renderEnquiryList() {
       : dash;
     return `
       <tr>
-        <td data-label="Received">${formatEnqDate(e.createdAt)}</td>
+        <td data-label="Enquiry Date">${formatEnqDate(e.createdAt)}</td>
         <td data-label="Name">${e.name  ? escapeHtmlNav(e.name)  : dash}</td>
         <td data-label="Email" title="${e.email ? escapeHtmlNav(e.email) : ''}">${e.email ? escapeHtmlNav(e.email) : dash}</td>
         <td data-label="Phone">${e.phone ? escapeHtmlNav(e.phone) : dash}</td>
