@@ -126,6 +126,13 @@ async function submitCredentials(e) {
 /* ─── Navigation ─────────────────────────────────────────────────────────── */
 const VALID_VIEWS = ['dashboard', 'bookings', 'calendar', 'analytics', 'calculations', 'payments', 'team', 'loyalty', 'enquire'];
 
+function toggleMobileNav() {
+  document.body.classList.toggle('nav-open');
+}
+function closeMobileNav() {
+  document.body.classList.remove('nav-open');
+}
+
 function showView(name) {
   if (!VALID_VIEWS.includes(name)) name = 'dashboard';
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -133,6 +140,8 @@ function showView(name) {
   document.getElementById('view-' + name).classList.add('active');
   const navBtn = document.querySelector(`[data-view="${name}"]`);
   if (navBtn) navBtn.classList.add('active');
+  // On mobile the drawer stays open until we close it.
+  closeMobileNav();
   // Keep URL hash in sync so deep-links from other pages work.
   if (location.hash !== '#' + name) {
     history.replaceState(null, '', '#' + name);

@@ -113,6 +113,34 @@ body.vendor-portal .logo-aj-img {
 
 .nav { display: flex; gap: 4px; }
 
+/* Mobile-only hamburger — hidden on desktop. */
+.nav-hamburger {
+  display: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.nav-hamburger:hover { background: var(--surface-2); }
+
+/* Backdrop under the slide-out nav — hidden until the drawer opens. */
+.nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(2px);
+  z-index: 90;
+}
+body.nav-open .nav-backdrop { display: block; }
+
 .nav-btn {
   display: flex;
   align-items: center;
@@ -778,6 +806,43 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   .header-inner { padding: 0 12px; height: 60px; }
   .user-info { display: none; }
   .nav-btn { padding: 6px 8px; font-size: 0.78rem; }
+
+  /* Show the hamburger; hide the flat nav until it's toggled. */
+  .nav-hamburger { display: inline-flex; }
+  .nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 82vw;
+    max-width: 320px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 76px 12px 20px;
+    z-index: 95;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    overflow-y: auto;
+    transform: translateX(-105%);
+    transition: transform 0.22s ease;
+    box-shadow: 6px 0 28px rgba(0,0,0,0.4);
+  }
+  body.nav-open .nav { transform: translateX(0); }
+
+  /* Mobile nav items: larger tap targets, full width. */
+  .nav .nav-btn {
+    justify-content: flex-start;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    border-radius: var(--radius-sm);
+    width: 100%;
+  }
+  .nav .nav-btn i { width: 22px; text-align: center; }
+
+  /* Push the user menu icons to the right; hide the change-creds icon
+     inside the drawer instead (accessible via a menu item if needed). */
+  .user-menu { gap: 6px; }
   /* Card header: stack title and subtitle on small screens */
   .card-header { flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 16px; }
   .card-header h2 { font-size: 0.92rem; }

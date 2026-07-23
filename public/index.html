@@ -15,12 +15,20 @@
   <header class="header">
     <div class="header-inner">
 
+      <!-- Hamburger — visible only on mobile -->
+      <button class="nav-hamburger" id="navHamburger" aria-label="Toggle navigation" onclick="toggleMobileNav()">
+        <i class="fas fa-bars"></i>
+      </button>
+
       <!-- AJ Logo — clicking goes to dashboard -->
       <a class="logo" href="/admin-customers.html" title="Vendor Admin">
         <img src="/aj-logo.png" alt="AJ" class="logo-aj-img" />
       </a>
 
-      <nav class="nav">
+      <!-- Slide-out backdrop (mobile only) -->
+      <div class="nav-backdrop" id="navBackdrop" onclick="closeMobileNav()"></div>
+
+      <nav class="nav" id="mainNav">
         <button class="nav-btn active" data-view="dashboard" onclick="showView('dashboard')">
           <i class="fas fa-chart-line"></i> Dashboard
         </button>
