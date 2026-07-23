@@ -2012,14 +2012,15 @@ function enqNextMonth() {
   renderEnquiryCalendar();
 }
 
-// Returns count of enquiries RECEIVED on this date (createdAt's date part).
-// The event dates on each enquiry aren't drawn on the calendar — this view is
-// about when the enquiry came in, not when the event is.
+// Counts enquiries that TOUCH this date — either received on it OR whose
+// event date is this day. Same enquiry counted once even if both match.
 function enqCountOnDate(iso) {
   return ENQUIRIES.reduce((n, e) => {
-    if (!e.createdAt) return n;
-    const receivedIso = String(e.createdAt).slice(0, 10);
-    return (receivedIso === iso) ? n + 1 : n;
+    const receivedIso = e.createdAt ? String(e.createdAt).slice(0, 10) : null;
+    const eventStart  = e.eventStartDate || null;
+    const eventEnd    = e.eventEndDate || eventStart;
+    const eventMatch  = eventStart && iso >= eventStart && iso <= eventEnd;
+    return (receivedIso === iso || eventMatch) ? n + 1 : n;
   }, 0);
 }
 
@@ -2089,12 +2090,16 @@ function renderEnquiryList() {
 
   let list = ENQUIRIES.slice();
   if (ENQ_SELECTED_DATE) {
-    // Filter by RECEIVED-on date (createdAt), matching the calendar badges.
+    // Filter to enquiries that TOUCH this date — either received on it or
+    // event date matches (same logic as the calendar badge count).
     list = list.filter(e => {
-      if (!e.createdAt) return false;
-      return String(e.createdAt).slice(0, 10) === ENQ_SELECTED_DATE;
+      const receivedIso = e.createdAt ? String(e.createdAt).slice(0, 10) : null;
+      const eventStart  = e.eventStartDate || null;
+      const eventEnd    = e.eventEndDate || eventStart;
+      const eventMatch  = eventStart && ENQ_SELECTED_DATE >= eventStart && ENQ_SELECTED_DATE <= eventEnd;
+      return receivedIso === ENQ_SELECTED_DATE || eventMatch;
     });
-    titleEl.textContent = `Enquiries received on ${formatEnqDate(ENQ_SELECTED_DATE)}`;
+    titleEl.textContent = `Enquiries touching ${formatEnqDate(ENQ_SELECTED_DATE)}`;
   } else if (filter === 'dated') {
     list = list.filter(e => !!e.eventStartDate);
     titleEl.textContent = 'Enquiries with event dates';
