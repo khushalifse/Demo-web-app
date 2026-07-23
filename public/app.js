@@ -124,7 +124,7 @@ async function submitCredentials(e) {
 }
 
 /* ─── Navigation ─────────────────────────────────────────────────────────── */
-const VALID_VIEWS = ['dashboard', 'bookings', 'calendar', 'analytics', 'calculations', 'payments', 'team', 'loyalty'];
+const VALID_VIEWS = ['dashboard', 'bookings', 'calendar', 'analytics', 'calculations', 'payments', 'team', 'loyalty', 'enquire'];
 
 function showView(name) {
   if (!VALID_VIEWS.includes(name)) name = 'dashboard';
