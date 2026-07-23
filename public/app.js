@@ -2006,13 +2006,14 @@ function enqNextMonth() {
   renderEnquiryCalendar();
 }
 
-// Returns count of enquiries whose event date range includes `iso` (YYYY-MM-DD).
+// Returns count of enquiries RECEIVED on this date (createdAt's date part).
+// The event dates on each enquiry aren't drawn on the calendar — this view is
+// about when the enquiry came in, not when the event is.
 function enqCountOnDate(iso) {
   return ENQUIRIES.reduce((n, e) => {
-    if (!e.eventStartDate) return n;
-    const start = e.eventStartDate;
-    const end   = e.eventEndDate || e.eventStartDate;
-    return (iso >= start && iso <= end) ? n + 1 : n;
+    if (!e.createdAt) return n;
+    const receivedIso = String(e.createdAt).slice(0, 10);
+    return (receivedIso === iso) ? n + 1 : n;
   }, 0);
 }
 
@@ -2074,12 +2075,12 @@ function renderEnquiryList() {
 
   let list = ENQUIRIES.slice();
   if (ENQ_SELECTED_DATE) {
+    // Filter by RECEIVED-on date (createdAt), matching the calendar badges.
     list = list.filter(e => {
-      if (!e.eventStartDate) return false;
-      const end = e.eventEndDate || e.eventStartDate;
-      return ENQ_SELECTED_DATE >= e.eventStartDate && ENQ_SELECTED_DATE <= end;
+      if (!e.createdAt) return false;
+      return String(e.createdAt).slice(0, 10) === ENQ_SELECTED_DATE;
     });
-    titleEl.textContent = `Enquiries for ${formatEnqDate(ENQ_SELECTED_DATE)}`;
+    titleEl.textContent = `Enquiries received on ${formatEnqDate(ENQ_SELECTED_DATE)}`;
   } else if (filter === 'dated') {
     list = list.filter(e => !!e.eventStartDate);
     titleEl.textContent = 'Enquiries with event dates';
