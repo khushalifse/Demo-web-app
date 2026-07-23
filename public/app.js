@@ -1947,26 +1947,14 @@ async function loadEnquiries() {
 
 function openEnquiryModal() {
   document.getElementById('enquiryForm').reset();
-  // Lock start/end pickers to today+; end can't go earlier than start.
+  // Lock the event date picker to today+.
   const today = new Date().toISOString().split('T')[0];
   const startEl = document.getElementById('enq-start');
-  const endEl   = document.getElementById('enq-end');
   if (startEl) startEl.min = today;
-  if (endEl)   endEl.min   = today;
   document.getElementById('enquiryModal').classList.add('open');
 }
 function closeEnquiryModal() {
   document.getElementById('enquiryModal').classList.remove('open');
-}
-
-// Called by the Start Date onchange — tighten End Date's floor.
-function enqSyncEndDateMin() {
-  const start = document.getElementById('enq-start').value;
-  const endEl = document.getElementById('enq-end');
-  const today = new Date().toISOString().split('T')[0];
-  const floor = (start && start > today) ? start : today;
-  endEl.min = floor;
-  if (endEl.value && endEl.value < floor) endEl.value = '';
 }
 
 async function submitEnquiry(ev) {
@@ -1976,16 +1964,12 @@ async function submitEnquiry(ev) {
     email:          document.getElementById('enq-email').value.trim(),
     phone:          document.getElementById('enq-phone').value.trim(),
     eventStartDate: document.getElementById('enq-start').value || null,
-    eventEndDate:   document.getElementById('enq-end').value   || null,
+    eventEndDate:   null,
     notes:          document.getElementById('enq-notes').value.trim(),
   };
   const today = new Date().toISOString().split('T')[0];
   if (payload.eventStartDate && payload.eventStartDate < today) {
-    showToast('Event start date cannot be in the past.', 'error'); return;
-  }
-  if (payload.eventEndDate && payload.eventStartDate &&
-      payload.eventEndDate < payload.eventStartDate) {
-    showToast("End date can't be earlier than start date.", 'error'); return;
+    showToast('Event date cannot be in the past.', 'error'); return;
   }
   try {
     await api('POST', '/api/admin/enquiries', payload);
@@ -2123,7 +2107,7 @@ function renderEnquiryList() {
         <td data-label="Name">${e.name  ? escapeHtmlNav(e.name)  : dash}</td>
         <td data-label="Email" title="${e.email ? escapeHtmlNav(e.email) : ''}">${e.email ? escapeHtmlNav(e.email) : dash}</td>
         <td data-label="Phone">${e.phone ? escapeHtmlNav(e.phone) : dash}</td>
-        <td data-label="Event Dates">${dates}</td>
+        <td data-label="Event Date">${dates}</td>
         <td data-label="Notes" title="${e.notes ? escapeHtmlNav(e.notes) : ''}">${e.notes ? escapeHtmlNav(e.notes) : dash}</td>
         <td>
           <div class="actions-cell">

@@ -723,7 +723,7 @@
                 <th style="width:180px">Name</th>
                 <th>Email</th>
                 <th style="width:150px">Phone</th>
-                <th style="width:220px">Event Dates</th>
+                <th style="width:220px">Event Date</th>
                 <th>Notes</th>
                 <th style="width:80px;text-align:center">Actions</th>
               </tr>
@@ -761,13 +761,9 @@
                 <label>Email</label>
                 <input type="email" id="enq-email" placeholder="rohit@example.com" autocomplete="off" />
               </div>
-              <div class="form-group">
-                <label>Event Start Date</label>
-                <input type="date" id="enq-start" onchange="enqSyncEndDateMin()" />
-              </div>
-              <div class="form-group">
-                <label>Event End Date</label>
-                <input type="date" id="enq-end" />
+              <div class="form-group full">
+                <label>Event Date</label>
+                <input type="date" id="enq-start" />
               </div>
               <div class="form-group full">
                 <label>Notes <span style="color:var(--text-3);font-weight:400">(optional)</span></label>
