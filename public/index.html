@@ -677,23 +677,101 @@
       <div class="page-header">
         <div>
           <h1>Enquiries</h1>
-          <span class="date-badge"><i class="fas fa-envelope-open-text"></i> Incoming leads &amp; enquiries</span>
+          <span class="date-badge"><i class="fas fa-envelope-open-text"></i> <span id="enq-total-badge">0 total</span></span>
         </div>
+        <button class="btn btn-primary" onclick="openEnquiryModal()">
+          <i class="fas fa-plus"></i> Enquired
+        </button>
       </div>
+
+      <!-- Calendar with month navigation + filter -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <h2 style="margin:0"><i class="fas fa-calendar-alt"></i> Enquiry Calendar</h2>
+          <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+            <button class="btn-icon" onclick="enqPrevMonth()" title="Previous month"><i class="fas fa-chevron-left"></i></button>
+            <strong id="enq-cal-title" style="min-width:140px;text-align:center">—</strong>
+            <button class="btn-icon" onclick="enqNextMonth()" title="Next month"><i class="fas fa-chevron-right"></i></button>
+            <select id="enq-filter" onchange="renderEnquiryCalendar()" style="margin-left:12px;padding:6px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.85rem">
+              <option value="all">All enquiries</option>
+              <option value="dated">Only with event dates</option>
+            </select>
+          </div>
+        </div>
+        <div id="enq-cal-body" style="padding:16px"></div>
+      </div>
+
+      <!-- Enquiries for the selected day (or "all undated" list) -->
       <div class="card">
         <div class="card-header">
-          <h2><i class="fas fa-inbox"></i> Enquiries</h2>
+          <h2><i class="fas fa-inbox"></i> <span id="enq-list-title">All enquiries</span></h2>
+          <span class="date-badge" id="enq-list-count">0</span>
         </div>
-        <div class="empty-state" style="padding:48px 24px">
-          <i class="fas fa-envelope-open-text" style="font-size:36px;color:var(--text-3);margin-bottom:14px"></i>
-          <h3>Tab created — content coming soon</h3>
-          <p style="max-width:520px;margin:0 auto;color:var(--text-2);line-height:1.6">
-            This is a placeholder for the Enquire tab. Tell your account manager
-            what you want to capture here (e.g. lead form entries, incoming
-            WhatsApp enquiries, event date requests, corporate booking
-            interest) and we'll build the list + form to match.
-          </p>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Received</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Event Dates</th>
+                <th>Notes</th>
+                <th style="text-align:center">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="enq-list-body">
+              <tr><td colspan="7" class="empty-row">No enquiries yet.</td></tr>
+            </tbody>
+          </table>
         </div>
+      </div>
+    </div>
+
+    <!-- Enquiry entry modal -->
+    <div class="modal-overlay" id="enquiryModal" onclick="if(event.target.id==='enquiryModal') closeEnquiryModal()">
+      <div class="modal modal-small">
+        <div class="modal-header">
+          <h2><i class="fas fa-envelope-open-text"></i> New Enquiry</h2>
+          <button class="modal-close" onclick="closeEnquiryModal()" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="enquiryForm" onsubmit="submitEnquiry(event)" novalidate>
+          <div class="modal-body">
+            <p style="color:var(--text-2);font-size:0.85rem;margin:0 0 14px">
+              Every field is optional. Fill in whatever you have from the lead.
+            </p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="enq-name" placeholder="e.g. Rohit Sharma" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label>Phone</label>
+                <input type="tel" id="enq-phone" placeholder="+91 98xxxxxxxx" autocomplete="off" />
+              </div>
+              <div class="form-group full">
+                <label>Email</label>
+                <input type="email" id="enq-email" placeholder="rohit@example.com" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label>Event Start Date</label>
+                <input type="date" id="enq-start" />
+              </div>
+              <div class="form-group">
+                <label>Event End Date</label>
+                <input type="date" id="enq-end" />
+              </div>
+              <div class="form-group full">
+                <label>Notes <span style="color:var(--text-3);font-weight:400">(optional)</span></label>
+                <input type="text" id="enq-notes" placeholder="Anything worth remembering (venue idea, budget hint, referrer…)" />
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" onclick="closeEnquiryModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Enquiry</button>
+          </div>
+        </form>
       </div>
     </div>
 

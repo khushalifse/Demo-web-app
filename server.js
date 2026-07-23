@@ -180,6 +180,7 @@ app.use('/api/customer-auth', require('./routes/customer-auth'));
 app.use('/api/bookings',         requireAuth,     require('./routes/bookings'));
 app.use('/api/admin/loyalty',    requireAuth,     require('./routes/admin-loyalty'));
 app.use('/api/admin/customers',  requireAuth,     require('./routes/admin-customers'));
+app.use('/api/admin/enquiries',  requireAuth,     require('./routes/enquiries'));
 app.use('/api/loyalty',          requireVendor,   require('./routes/loyalty'));
 app.use('/api/customer',         requireCustomer, require('./routes/customer'));
 

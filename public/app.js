@@ -142,6 +142,7 @@ function showView(name) {
   if (name === 'team')      renderTeamView();
   if (name === 'analytics') renderAnalyticsView();
   if (name === 'loyalty')   renderLoyaltyView();
+  if (name === 'enquire')   loadEnquiries();
 }
 
 // On hash change (e.g. user pastes /#bookings), switch view.
@@ -1917,3 +1918,190 @@ async function loySubmitOverride() {
     showToast(err.message, 'error');
   }
 }
+
+/* ─── Enquire ────────────────────────────────────────────────────────────── */
+let ENQUIRIES = [];
+let ENQ_MONTH = (() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; })();
+let ENQ_SELECTED_DATE = null; // YYYY-MM-DD string when a day is clicked
+
+async function loadEnquiries() {
+  try {
+    ENQUIRIES = await api('/api/admin/enquiries');
+    renderEnquiryCalendar();
+    renderEnquiryList();
+    document.getElementById('enq-total-badge').textContent =
+      `${ENQUIRIES.length} total`;
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openEnquiryModal() {
+  document.getElementById('enquiryForm').reset();
+  document.getElementById('enquiryModal').classList.add('open');
+}
+function closeEnquiryModal() {
+  document.getElementById('enquiryModal').classList.remove('open');
+}
+
+async function submitEnquiry(ev) {
+  ev.preventDefault();
+  const payload = {
+    name:           document.getElementById('enq-name').value.trim(),
+    email:          document.getElementById('enq-email').value.trim(),
+    phone:          document.getElementById('enq-phone').value.trim(),
+    eventStartDate: document.getElementById('enq-start').value || null,
+    eventEndDate:   document.getElementById('enq-end').value   || null,
+    notes:          document.getElementById('enq-notes').value.trim(),
+  };
+  if (payload.eventEndDate && payload.eventStartDate &&
+      payload.eventEndDate < payload.eventStartDate) {
+    showToast("End date can't be earlier than start date.", 'error');
+    return;
+  }
+  try {
+    await api('/api/admin/enquiries', { method: 'POST', body: JSON.stringify(payload) });
+    showToast('Enquiry saved.', 'success');
+    closeEnquiryModal();
+    await loadEnquiries();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteEnquiry(id) {
+  if (!confirm('Delete this enquiry? This cannot be undone.')) return;
+  try {
+    await api(`/api/admin/enquiries/${id}`, { method: 'DELETE' });
+    showToast('Enquiry removed.', 'success');
+    await loadEnquiries();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+function enqPrevMonth() {
+  ENQ_MONTH.m--;
+  if (ENQ_MONTH.m < 0) { ENQ_MONTH.m = 11; ENQ_MONTH.y--; }
+  renderEnquiryCalendar();
+}
+function enqNextMonth() {
+  ENQ_MONTH.m++;
+  if (ENQ_MONTH.m > 11) { ENQ_MONTH.m = 0; ENQ_MONTH.y++; }
+  renderEnquiryCalendar();
+}
+
+// Returns count of enquiries whose event date range includes `iso` (YYYY-MM-DD).
+function enqCountOnDate(iso) {
+  return ENQUIRIES.reduce((n, e) => {
+    if (!e.eventStartDate) return n;
+    const start = e.eventStartDate;
+    const end   = e.eventEndDate || e.eventStartDate;
+    return (iso >= start && iso <= end) ? n + 1 : n;
+  }, 0);
+}
+
+function renderEnquiryCalendar() {
+  const titleEl = document.getElementById('enq-cal-title');
+  const bodyEl  = document.getElementById('enq-cal-body');
+  if (!titleEl || !bodyEl) return;
+
+  const { y, m } = ENQ_MONTH;
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  titleEl.textContent = `${monthNames[m]} ${y}`;
+
+  // Monday-first week grid. JS getDay: Sun=0..Sat=6 → shift so Mon=0..Sun=6.
+  const firstOfMonth = new Date(y, m, 1);
+  const firstDOW = (firstOfMonth.getDay() + 6) % 7;
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const todayIso = new Date().toISOString().split('T')[0];
+
+  const names = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+  const dayNamesHtml = names.map(n => `<div class="cal-day-name">${n}</div>`).join('');
+
+  let cells = '';
+  for (let i = 0; i < firstDOW; i++) cells += '<div class="cal-day empty"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const count = enqCountOnDate(iso);
+    const classes = ['cal-day'];
+    if (iso === todayIso) classes.push('today');
+    if (count > 0)        classes.push('booked');
+    if (ENQ_SELECTED_DATE === iso) classes.push('selected');
+    const badge = count > 0
+      ? `<div style="font-size:0.7rem;margin-top:4px;color:var(--accent);font-weight:700">${count} enq</div>`
+      : '';
+    cells += `<div class="${classes.join(' ')}" onclick="enqSelectDate('${iso}')" style="cursor:pointer">
+                <div style="font-weight:600">${d}</div>${badge}
+              </div>`;
+  }
+
+  bodyEl.innerHTML = `
+    <div class="cal-days-header">${dayNamesHtml}</div>
+    <div class="cal-days-grid">${cells}</div>
+    <div style="margin-top:12px;color:var(--text-3);font-size:0.78rem;text-align:center">
+      Click a day to filter the list below. Click again to clear.
+    </div>`;
+}
+
+function enqSelectDate(iso) {
+  ENQ_SELECTED_DATE = (ENQ_SELECTED_DATE === iso) ? null : iso;
+  renderEnquiryCalendar();
+  renderEnquiryList();
+}
+
+function renderEnquiryList() {
+  const filter   = document.getElementById('enq-filter')?.value || 'all';
+  const tbody    = document.getElementById('enq-list-body');
+  const titleEl  = document.getElementById('enq-list-title');
+  const countEl  = document.getElementById('enq-list-count');
+  if (!tbody) return;
+
+  let list = ENQUIRIES.slice();
+  if (ENQ_SELECTED_DATE) {
+    list = list.filter(e => {
+      if (!e.eventStartDate) return false;
+      const end = e.eventEndDate || e.eventStartDate;
+      return ENQ_SELECTED_DATE >= e.eventStartDate && ENQ_SELECTED_DATE <= end;
+    });
+    titleEl.textContent = `Enquiries for ${formatEnqDate(ENQ_SELECTED_DATE)}`;
+  } else if (filter === 'dated') {
+    list = list.filter(e => !!e.eventStartDate);
+    titleEl.textContent = 'Enquiries with event dates';
+  } else {
+    titleEl.textContent = 'All enquiries';
+  }
+  countEl.textContent = list.length;
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-row">No enquiries match this filter.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(e => {
+    const dash = '<span style="color:var(--text-3)">—</span>';
+    const dates = e.eventStartDate
+      ? (e.eventEndDate && e.eventEndDate !== e.eventStartDate
+          ? `${formatEnqDate(e.eventStartDate)} → ${formatEnqDate(e.eventEndDate)}`
+          : formatEnqDate(e.eventStartDate))
+      : dash;
+    return `
+      <tr>
+        <td>${formatEnqDate(e.createdAt)}</td>
+        <td>${e.name  ? escapeHtmlNav(e.name)  : dash}</td>
+        <td>${e.email ? escapeHtmlNav(e.email) : dash}</td>
+        <td>${e.phone ? escapeHtmlNav(e.phone) : dash}</td>
+        <td>${dates}</td>
+        <td>${e.notes ? escapeHtmlNav(e.notes) : dash}</td>
+        <td style="text-align:center">
+          <button class="btn-icon delete" title="Delete enquiry" onclick="deleteEnquiry('${e.id}')">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function formatEnqDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  // If the string is a full timestamp, show only date part.
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
