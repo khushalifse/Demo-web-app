@@ -2012,15 +2012,15 @@ function enqNextMonth() {
   renderEnquiryCalendar();
 }
 
-// Counts enquiries that TOUCH this date — either received on it OR whose
-// event date is this day. Same enquiry counted once even if both match.
+// Counts enquiries whose EVENT date matches this day. Received-date
+// isn't drawn on the calendar — the calendar is a forward-looking
+// "what's happening" view, not an inbound-traffic heatmap.
 function enqCountOnDate(iso) {
   return ENQUIRIES.reduce((n, e) => {
-    const receivedIso = e.createdAt ? String(e.createdAt).slice(0, 10) : null;
-    const eventStart  = e.eventStartDate || null;
-    const eventEnd    = e.eventEndDate || eventStart;
-    const eventMatch  = eventStart && iso >= eventStart && iso <= eventEnd;
-    return (receivedIso === iso || eventMatch) ? n + 1 : n;
+    const eventStart = e.eventStartDate || null;
+    if (!eventStart) return n;
+    const eventEnd = e.eventEndDate || eventStart;
+    return (iso >= eventStart && iso <= eventEnd) ? n + 1 : n;
   }, 0);
 }
 
@@ -2090,16 +2090,15 @@ function renderEnquiryList() {
 
   let list = ENQUIRIES.slice();
   if (ENQ_SELECTED_DATE) {
-    // Filter to enquiries that TOUCH this date — either received on it or
-    // event date matches (same logic as the calendar badge count).
+    // Filter to enquiries whose EVENT date covers this day. Matches the
+    // calendar badge count above.
     list = list.filter(e => {
-      const receivedIso = e.createdAt ? String(e.createdAt).slice(0, 10) : null;
-      const eventStart  = e.eventStartDate || null;
-      const eventEnd    = e.eventEndDate || eventStart;
-      const eventMatch  = eventStart && ENQ_SELECTED_DATE >= eventStart && ENQ_SELECTED_DATE <= eventEnd;
-      return receivedIso === ENQ_SELECTED_DATE || eventMatch;
+      const eventStart = e.eventStartDate || null;
+      if (!eventStart) return false;
+      const eventEnd = e.eventEndDate || eventStart;
+      return ENQ_SELECTED_DATE >= eventStart && ENQ_SELECTED_DATE <= eventEnd;
     });
-    titleEl.textContent = `Enquiries touching ${formatEnqDate(ENQ_SELECTED_DATE)}`;
+    titleEl.textContent = `Enquiries for events on ${formatEnqDate(ENQ_SELECTED_DATE)}`;
   } else if (filter === 'dated') {
     list = list.filter(e => !!e.eventStartDate);
     titleEl.textContent = 'Enquiries with event dates';
