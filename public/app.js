@@ -2040,15 +2040,18 @@ function renderEnquiryCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     const iso = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const count = enqCountOnDate(iso);
-    const classes = ['cal-day'];
+    const classes = ['cal-day', 'enq-day'];
     if (iso === todayIso) classes.push('today');
     if (count > 0)        classes.push('booked');
     if (ENQ_SELECTED_DATE === iso) classes.push('selected');
-    const badge = count > 0
-      ? `<div style="font-size:0.7rem;margin-top:4px;color:var(--accent);font-weight:700">${count} enq</div>`
+    // Number stacked on top of a small pill so "23" and the count read as two
+    // separate things instead of running together like "231 enq".
+    const pill = count > 0
+      ? `<span class="enq-pill">${count}</span>`
       : '';
-    cells += `<div class="${classes.join(' ')}" onclick="enqSelectDate('${iso}')" style="cursor:pointer">
-                <div style="font-weight:600">${d}</div>${badge}
+    cells += `<div class="${classes.join(' ')}" onclick="enqSelectDate('${iso}')">
+                <span class="enq-day-num">${d}</span>
+                ${pill}
               </div>`;
   }
 

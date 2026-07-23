@@ -1225,6 +1225,36 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
 }
 
+/* Enquiry calendar cells: stack the day number over an accent pill so the
+   count reads as its own chip instead of running into the number. */
+.cal-day.enq-day {
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  padding: 6px 4px;
+  min-height: 68px;
+}
+.enq-day-num {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.enq-pill {
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  min-width: 22px;
+  text-align: center;
+}
+.cal-day.enq-day.selected {
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
 @media (max-width: 768px) {
   .cal-grid    { grid-template-columns: 1fr; }
   .cal-summary { grid-template-columns: repeat(3, 1fr); }
