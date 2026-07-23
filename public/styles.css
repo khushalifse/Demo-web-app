@@ -1344,17 +1344,17 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   font-size: 0.58rem;
 }
 .enq-cal-wrap .cal-days-grid {
-  padding: 4px;
-  gap: 2px;
+  padding: 6px;
+  gap: 4px;
 }
 .cal-day.enq-day {
   aspect-ratio: unset;
-  height: 44px;
+  height: 52px;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   cursor: pointer;
-  padding: 3px 2px;
-  border-radius: 6px;
+  padding: 4px 2px;
+  border-radius: 8px;
   background: var(--surface);
   border: 1px solid transparent;
   transition: background 0.15s, border-color 0.15s, transform 0.1s;
