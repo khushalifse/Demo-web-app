@@ -843,6 +843,30 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   /* Push the user menu icons to the right; hide the change-creds icon
      inside the drawer instead (accessible via a menu item if needed). */
   .user-menu { gap: 6px; }
+
+  /* Vendor Admin sub-tabs — horizontal scroll instead of wrap so they
+     stay on one row and don't jitter the layout. */
+  .filter-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+  .filter-tabs::-webkit-scrollbar { display: none; }
+  .filter-tab { flex-shrink: 0; }
+
+  /* Card headers with action buttons on the right (Vendors list,
+     Enquire calendar) — stack title on top, buttons below, full width. */
+  .card-header > div:has(> button) {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px !important;
+  }
+  .card-header > div:has(> button) > button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
   /* Card header: stack title and subtitle on small screens */
   .card-header { flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 16px; }
   .card-header h2 { font-size: 0.92rem; }

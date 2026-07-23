@@ -170,9 +170,15 @@
   <header class="header">
     <div class="header-inner">
 
+      <button class="nav-hamburger" aria-label="Toggle navigation" onclick="document.body.classList.toggle('nav-open')">
+        <i class="fas fa-bars"></i>
+      </button>
+
       <a class="logo" href="/admin-customers.html" title="Vendor Admin">
         <img src="/aj-logo.png" alt="AJ" class="logo-aj-img" />
       </a>
+
+      <div class="nav-backdrop" onclick="document.body.classList.remove('nav-open')"></div>
 
       <nav class="nav">
         <a class="nav-btn" href="/#dashboard"    style="text-decoration:none"><i class="fas fa-chart-line"></i> Dashboard</a>
