@@ -2111,7 +2111,18 @@ function renderEnquiryList() {
     list = list.filter(e => !!e.eventStartDate);
     titleEl.textContent = 'Enquiries with event dates';
   } else {
-    titleEl.textContent = 'All enquiries';
+    // Default view — if every enquiry in the list was received on the same
+    // day, say so (e.g. "Enquiries received on 23 Jul 2026"). Otherwise fall
+    // back to "All enquiries".
+    const receivedDays = new Set(
+      list.map(e => e.createdAt ? String(e.createdAt).slice(0, 10) : '').filter(Boolean)
+    );
+    if (list.length && receivedDays.size === 1) {
+      const [only] = receivedDays;
+      titleEl.textContent = `Enquiries received on ${formatEnqDate(only)}`;
+    } else {
+      titleEl.textContent = 'All enquiries';
+    }
   }
   countEl.textContent = list.length;
 
