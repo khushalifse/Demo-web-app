@@ -1305,6 +1305,27 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
+/* Enquiries list table: tighter, evenly-aligned columns. */
+.enq-table th,
+.enq-table td {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.enq-table td:nth-child(3), /* Email  */
+.enq-table td:nth-child(6)  /* Notes  */ {
+  white-space: normal;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.enq-table .actions-cell,
+.enq-table td:last-child {
+  text-align: center;
+}
+.enq-table .btn-icon {
+  margin: 0 auto;
+}
+
 @media (max-width: 768px) {
   .cal-grid    { grid-template-columns: 1fr; }
   .cal-summary { grid-template-columns: repeat(3, 1fr); }
