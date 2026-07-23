@@ -2056,7 +2056,10 @@ function renderEnquiryCalendar() {
     const iso = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const count = enqCountOnDate(iso);
     const classes = ['cal-day', 'enq-day'];
-    if (iso === todayIso) classes.push('today');
+    // No 'today' class on the enquiry calendar — today doesn't mean anything
+    // here unless it also has an event, in which case .booked already lights
+    // it up. A bare orange ring on today was confusing admins into thinking
+    // there was an enquiry on that day.
     if (count > 0)        classes.push('booked');
     if (ENQ_SELECTED_DATE === iso) classes.push('selected');
     // Number stacked on top of a small pill so "23" and the count read as two
