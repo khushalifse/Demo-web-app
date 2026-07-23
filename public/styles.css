@@ -1370,6 +1370,16 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
+/* Mobile tuning for the enquire mini-calendar. */
+@media (max-width: 640px) {
+  .enq-cal-wrap { max-width: 100%; }
+  .cal-day.enq-day { height: 44px; padding: 3px 1px; gap: 2px; }
+  .enq-day-num { font-size: 0.78rem; }
+  .enq-pill { font-size: 0.55rem; padding: 1px 5px; min-width: 16px; }
+  .enq-cal-wrap .cal-days-grid { padding: 4px; gap: 3px; }
+  .enq-cal-wrap .cal-day-name { font-size: 0.52rem; padding: 5px 1px; }
+}
+
 /* Enquiries list table: tighter, evenly-aligned columns. */
 .enq-table th,
 .enq-table td {

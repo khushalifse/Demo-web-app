@@ -2116,16 +2116,18 @@ function renderEnquiryList() {
       : dash;
     return `
       <tr>
-        <td>${formatEnqDate(e.createdAt)}</td>
-        <td>${e.name  ? escapeHtmlNav(e.name)  : dash}</td>
-        <td title="${e.email ? escapeHtmlNav(e.email) : ''}">${e.email ? escapeHtmlNav(e.email) : dash}</td>
-        <td>${e.phone ? escapeHtmlNav(e.phone) : dash}</td>
-        <td>${dates}</td>
-        <td title="${e.notes ? escapeHtmlNav(e.notes) : ''}">${e.notes ? escapeHtmlNav(e.notes) : dash}</td>
+        <td data-label="Received">${formatEnqDate(e.createdAt)}</td>
+        <td data-label="Name">${e.name  ? escapeHtmlNav(e.name)  : dash}</td>
+        <td data-label="Email" title="${e.email ? escapeHtmlNav(e.email) : ''}">${e.email ? escapeHtmlNav(e.email) : dash}</td>
+        <td data-label="Phone">${e.phone ? escapeHtmlNav(e.phone) : dash}</td>
+        <td data-label="Event Dates">${dates}</td>
+        <td data-label="Notes" title="${e.notes ? escapeHtmlNav(e.notes) : ''}">${e.notes ? escapeHtmlNav(e.notes) : dash}</td>
         <td>
-          <button class="btn-icon delete" title="Delete enquiry" onclick="deleteEnquiry('${e.id}')">
-            <i class="fas fa-trash"></i>
-          </button>
+          <div class="actions-cell">
+            <button class="btn-icon delete" title="Delete enquiry" onclick="deleteEnquiry('${e.id}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
         </td>
       </tr>`;
   }).join('');
