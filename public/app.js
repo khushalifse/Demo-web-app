@@ -2056,9 +2056,11 @@ function renderEnquiryCalendar() {
   }
 
   bodyEl.innerHTML = `
-    <div class="cal-days-header">${dayNamesHtml}</div>
-    <div class="cal-days-grid">${cells}</div>
-    <div style="margin-top:12px;color:var(--text-3);font-size:0.78rem;text-align:center">
+    <div class="enq-cal-wrap">
+      <div class="cal-days-header">${dayNamesHtml}</div>
+      <div class="cal-days-grid">${cells}</div>
+    </div>
+    <div style="margin-top:10px;color:var(--text-3);font-size:0.75rem;text-align:center">
       Click a day to filter the list below. Click again to clear.
     </div>`;
 }

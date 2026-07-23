@@ -1225,34 +1225,84 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
 }
 
-/* Enquiry calendar cells: stack the day number over an accent pill so the
-   count reads as its own chip instead of running into the number. */
-.cal-day.enq-day {
-  flex-direction: column;
-  gap: 4px;
-  cursor: pointer;
-  padding: 6px 4px;
-  min-height: 68px;
+/* ── Enquiry mini-calendar ── */
+/* The main Availability calendar takes the full card width with big square
+   cells. For the Enquire tab we want a compact overview — max 520px wide,
+   fixed-height cells, tighter gaps, cleaner day-number + count-pill pair. */
+.enq-cal-wrap {
+  max-width: 520px;
+  margin: 0 auto;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
+.enq-cal-wrap .cal-days-header {
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+  padding: 4px 6px;
+}
+.enq-cal-wrap .cal-day-name {
+  padding: 6px 2px;
+  font-size: 0.58rem;
+}
+.enq-cal-wrap .cal-days-grid {
+  padding: 6px;
+  gap: 4px;
+}
+.cal-day.enq-day {
+  aspect-ratio: unset;
+  height: 52px;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+  padding: 4px 2px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.cal-day.enq-day:hover:not(.empty) {
+  background: var(--surface-3, rgba(255,255,255,0.04));
+  border-color: var(--border);
+}
+.cal-day.enq-day.empty { background: transparent; }
 .enq-day-num {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 600;
   line-height: 1;
 }
 .enq-pill {
   background: var(--accent);
   color: #fff;
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  padding: 2px 8px;
+  letter-spacing: 0.02em;
+  padding: 1px 7px;
   border-radius: 999px;
-  min-width: 22px;
+  min-width: 20px;
   text-align: center;
+  line-height: 1.3;
+}
+.cal-day.enq-day.today {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.cal-day.enq-day.booked {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: var(--success);
+}
+.cal-day.enq-day.booked:hover {
+  background: rgba(16, 185, 129, 0.24);
+  transform: none;
+  box-shadow: none;
 }
 .cal-day.enq-day.selected {
-  border: 1.5px solid var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 @media (max-width: 768px) {
